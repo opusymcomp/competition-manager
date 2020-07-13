@@ -7,8 +7,7 @@ CDIR=$(cd ../../../; pwd)
 #DATE=`date +%Y%m%d%0k%M`
 #GROUP=$1
 #LOGDIR="$HOME/competition-manager/tournament/log/test/"
-#WLOG="write/"
-TDIR="${CDIR}/tournament/"
+#TDIR="${CDIR}/tournament/"
 #cd ${TDIR}
 #echo (ls ${TDIR})
 MATCH="/match_1/"
@@ -21,6 +20,8 @@ do
 	# echo $i
 	# TEAMS[i]=${ARRAY[i]}
 	if [ $i -eq 0 ] ; then
+		TDIR=${ARRAY[i]}
+	elif [ $i -eq 1 ] ; then
 		LOGDIR=${TDIR}${ARRAY[i]}
 	else
 		TEAMS[i]=${ARRAY[$((i))]}

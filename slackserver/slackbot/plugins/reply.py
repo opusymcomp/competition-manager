@@ -123,7 +123,9 @@ def cool_func(message):
 
                     subprocess.run([tournament_path + 'start.sh', '--config='+config])
 
-                    arg=[ conf['log_dir'] ]
+                    arg=[]
+                    arg.append(tournament_path)
+                    arg.append(conf['log_dir'])
                     arg.extend(roundrobin)
                     arg = " ".join(arg)
                     result = subprocess.run( ['../gametools/results/result.sh', str(arg)] )
@@ -318,6 +320,9 @@ def file_download(message):
                             mod_q.append(line)
                     with open( q_path, 'w' ) as q_txt_ad:
                         q_txt_ad.writelines(mod_q)
+            else:
+                with open( q_path, 'w' ) as q_txt:
+                    q_txt.writelines(teamname+','+time+'\n')
             msg = 'binary test complete'
             ori_channel=message.body['channel']
             message.body['channel']='C013QBT5L4R'
