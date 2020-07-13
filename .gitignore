@@ -1,0 +1,5 @@
+*.rcg*
+*.rcl*
+*.csv
+*__pycache__*
+*.pyc
