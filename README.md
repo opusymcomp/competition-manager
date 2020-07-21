@@ -31,11 +31,10 @@ $ pip install oauth2client
 $ pip install pyyaml
 ```
 
-##Usgae
+## Usgae
 
-###slackbotの設定
-まず[Slack](https://slack.com/get-started#/create)のアカウントを作成す
-る．
+### slackbotの設定
+まず[Slack](https://slack.com/get-started#/create)のアカウントを作成する．
 
 次に，[Slackbot](https://api.slack.com/bot-users)を作成する.
 
@@ -45,15 +44,14 @@ competition-manager/slackserver/slackbot/slackbot_settings.py
 ```
 最後に，Slackbotをチャンネル（e.g. #general）に追加する．
 
-###testの設定
+### testの設定
 次のファイルにagent2dへのパスを記入する．
 ```
 competition-manager/test/autotest.sh
 ```
 
-###tournamentの設定
-toolでインストールしたtournamentの設定を行う．以下のファイルを作成・編
-集する．
+### tournamentの設定
+toolでインストールしたtournamentの設定を行う．以下のファイルを作成・編集する．
 ```
 tournament/config/config.yml
 ```
@@ -71,8 +69,7 @@ server_conf: config/rcssserver/server_official.conf
 ```
 
 - チームディレクトリ位置の設定
-  - 次の行をcompetition-manager/slackserver/slackbot/plugins/reply.py
-  - と同じディレクトリを指定する（初期設定は/home/user/）．
+  - 次の行を competition-manager/slackserver/slackbot/plugins/reply.py と同じディレクトリを指定する（初期設定は/home/user/）．
 ```
 teams_dir: /home/user/
 ```
@@ -94,8 +91,7 @@ organize_ch_n='organizer'
 ```
 
 - 管理者のid設定
-  - 次の行で，バイナリアップロード開始コマンドなどを行うユーザのidを設
-  - 定
+  - 次の行で，バイナリアップロード開始コマンドなどを行うユーザのidを設定
 ```
 organizer_id="ORGANIZER_ID"
 ```
@@ -109,15 +105,14 @@ loganalyzer_path='/home/user/path/to/loganalyzer3/'
 ```
 tournament_path='/home/user/competition-manager/tournament/'
 ```
-competition-manager/slackserver/gametools/results
 
-###resultsの設定
+### resultsの設定
 - tournamentの設定でmode_groupを使用する場合は必要なし
 - tournamentの設定でmode_single_matchを使用する場合
   - google spreadsheetの設定jsonファイルを設置
   - competition-manager/slackserver/gametools/resultsにある
   ggssapi_gameresult.pyとstanding.pyの設定jsonファイルへのパスとドキュ
-  メントIDを設定．以下のドキュメントIDはsperadsheetのURL
+  メントIDを設定
 ```
 path='to/json/path.json'
 doc_id='[document_id]'
@@ -128,7 +123,7 @@ https://docs.google.com/spreadsheets/d/[document_id]/edit#gid=0
 ```
 
 
-###起動方法
+### 起動方法
 ```
 $ cd autogame/slackserver/slackbot
 $ python ./run.py
