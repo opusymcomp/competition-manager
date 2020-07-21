@@ -30,7 +30,9 @@ $ pip install gspread
 $ pip install oauth2client
 $ pip install pyyaml
 ```
+
 ##Usgae
+
 ###slackbotの設定
 まず[Slack](https://slack.com/get-started#/create)のアカウントを作成す
 る．
@@ -45,69 +47,70 @@ competition-manager/slackserver/slackbot/slackbot_settings.py
 
 ###testの設定
 次のファイルにagent2dへのパスを記入する．
-'''
+```
 competition-manager/test/autotest.sh
-'''
+```
 
 ###tournamentの設定
 toolでインストールしたtournamentの設定を行う．以下のファイルを作成・編
 集する．
-'''
+```
 tournament/config/config.yml
-'''
+```
 - ログの保存場所の設定
   - 次の行を任意のディレクトリに変更する．
-'''
+```
 log_dir: log/dir_name
-'''
+```
 
 - confファイルの設定
   - 次の行を試合設定によって変更する．
-'''
+```
 player_conf: config/rcssserver/player_official.conf
 server_conf: config/rcssserver/server_official.conf
-'''
+```
 
 - チームディレクトリ位置の設定
   - 次の行をcompetition-manager/slackserver/slackbot/plugins/reply.py
   - と同じディレクトリを指定する（初期設定は/home/user/）．
-'''
+```
 teams_dir: /home/user/
-'''
+```
 
 ###reply.pyの設定
 次のファイルを編集する．
-'''
+```
 competition-manager/slackserver/slackbot/plugins/reply.py
-'''
+```
 - 次の行をtournamentからconfigへの相対パスに設定
-'''
+```
 config='config/config.yml'
-'''
+```
 
 - organizerチャンネルの名前を設定
   - 次の行で，グループ作成や試合開始などを実行するチャンネルを設定
-'''
+```
 organize_ch_n='organizer'
-'''
+```
 
 - 管理者のid設定
   - 次の行で，バイナリアップロード開始コマンドなどを行うユーザのidを設
   - 定
-'''
+```
 organizer_id="ORGANIZER_ID"
-'''
+```
 
 - 次の行で，toolでインストールしたloganalyzer3への絶対パスを設定
-'''
+```
 loganalyzer_path='/home/user/path/to/loganalyzer3/'
-'''
+```
 
 - 次の行で，toolでインストールしたtournamentへの絶対パスを設定
-'''
+```
 tournament_path='/home/user/competition-manager/tournament/'
-'''
+```
 competition-manager/slackserver/gametools/results
+
 ###resultsの設定
 - tournamentの設定でmode_groupを使用する場合は必要なし
 - tournamentの設定でmode_single_matchを使用する場合
@@ -115,14 +118,14 @@ competition-manager/slackserver/gametools/results
   - competition-manager/slackserver/gametools/resultsにある
   ggssapi_gameresult.pyとstanding.pyの設定jsonファイルへのパスとドキュ
   メントIDを設定．以下のドキュメントIDはsperadsheetのURL
-'''
+```
 path='to/json/path.json'
 doc_id='[document_id]'
-'''
+```
 上記の[document_id]は使用するspreadsheetのURLの以下の部分を参照
-'''
+```
 https://docs.google.com/spreadsheets/d/[document_id]/edit#gid=0
-'''
+```
 
 
 ###起動方法
