@@ -31,7 +31,7 @@ $ pip install oauth2client
 $ pip install pyyaml
 ```
 
-## Usgae
+## Setting
 
 ### slackbotの設定
 まず[Slack](https://slack.com/get-started#/create)のアカウントを作成する．
@@ -74,7 +74,7 @@ server_conf: config/rcssserver/server_official.conf
 teams_dir: /home/user/
 ```
 
-###reply.pyの設定
+### reply.pyの設定
 次のファイルを編集する．
 ```
 competition-manager/slackserver/slackbot/plugins/reply.py
@@ -123,7 +123,7 @@ https://docs.google.com/spreadsheets/d/[document_id]/edit#gid=0
 ```
 
 
-### 起動方法
+### Usage
 ```
 $ cd autogame/slackserver/slackbot
 $ python ./run.py
