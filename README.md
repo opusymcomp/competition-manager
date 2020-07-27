@@ -4,7 +4,7 @@ link to [manual](https://docs.google.com/document/d/1kATDp0V7TZ60z0wWNn--v5CRXlh
 
 ## Requirement
 - OS
-  - Ubuntu 16.0
+  - Ubuntu 16 or 18
 - tool
   - [rcssserver](https://github.com/rcsoccersim/rcssserver)
   - [loganalyzer3](https://github.com/opusymcomp/loganalyzer3)
@@ -121,11 +121,25 @@ doc_id='[document_id]'
 ```
 https://docs.google.com/spreadsheets/d/[document_id]/edit#gid=0
 ```
+### チームリーダーの登録
+チームをアップロードするユーザのメールアドレスを以下のファイルに記入
+```
+competition-manager/test/maillist.txt
+```
 
-
-### Usage
+## Usage
 ```
 $ cd autogame/slackserver/slackbot
 $ python ./run.py
 ```
 このコマンド後は，slack上で操作
+
+
+管理者のid設定で設定したuserでslackbotにDMでバイナリ受け入れ開始コマンドを送信
+```
+upload start
+```
+
+```
+upload end
+```
