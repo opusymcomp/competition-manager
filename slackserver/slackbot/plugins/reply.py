@@ -27,6 +27,11 @@ organize_ch_n="organizer"
 bin_flag=False
 organizer_id="ORGANIZER_ID"
 game_flag=False
+# with open( "./conf.yml" ) as fy_r:
+#     conf = yaml.safe_load( fy_r )
+# organize_ch_n=conf["channel"]
+# organizer_id=conf["id"]
+
 
 if os.environ.get("PATH"):
     os.environ["PATH"]=loganalyzer_path+":"+os.environ["PATH"]
@@ -69,7 +74,6 @@ def listen_func(message):
 def cool_func(message):
     global game_flag
     if not game_flag:
-        game_flag=True
         dt_start = datetime.datetime.now().strftime('%Y%m%d%H%M')
         startgroup = message.body['text']
         group =  ''.join(startgroup[6:])
@@ -83,6 +87,7 @@ def cool_func(message):
         message.body['channel']=ori_channel
         message.send(msg)
 
+        game_flag=True
         with open( config_yml ) as fy_r:
             conf = yaml.safe_load( fy_r )
 
@@ -161,7 +166,24 @@ def cool_func(message):
             with open( config_yml, 'w' ) as fy_w:
                 yaml.dump( conf, fy_w, default_flow_style=False )
 
-            subprocess.run([tournament_path + 'start.sh', '--config='+config])
+            group_match_sim = subprocess.run([tournament_path + 'start.sh', '--config='+config+ ' --simulate'], encoding='utf-8', stdout=subprocess.PIPE )
+            match_dict={}
+            max_match = 0
+            matches = group_match_sim.stdout.split('\n')
+            for i in range( len(matches) ):
+                if 'vs' in matches[i]:
+                    match_line = matches[i].split()
+                    match_name = 'match_' + match_line[0].rstrip(':')
+                    match_team={}
+                    match_team['team_l'] = match_line[1].split('/')[-1]
+                    match_team['team_r'] = match_line[3].split('/')[-1]
+                    match_dict[match_name]=match_team
+                    max_match = max(max_match, int(match_line[0].rstrip(':')) )
+            match_dict['max_match'] = max_match
+            with open( './match_list.yml', 'w' ) as fw:
+                yaml.dump( match_dict, fw, default_flow_style=False )
+
+            group_match = subprocess.run([tournament_path + 'start.sh', '--config='+config], encoding='utf-8', stdout=subprocess.PIPE )
 
         dt_finish = datetime.datetime.now().strftime('%Y%m%d%H%M')
         msg = 'The ' + group + ' finish! \n Finish time : '+ dt_finish
@@ -169,6 +191,54 @@ def cool_func(message):
         game_flag=False
     else:
         message.send("do not start a game while other game")
+
+
+@listen_to(r'^announce match$')
+@in_channel(organize_ch_n)
+def listen_func(message):
+    with open( config_yml ) as fy_r:
+        conf = yaml.safe_load( fy_r )
+    match_n = 0
+    progress_flag = False
+    team_l = ''
+    team_r = ''
+    while game_flag:
+        with open( './match_list.yml' ) as fr:
+            match_list = yaml.safe_load( fr )
+
+        for n in os.listdir(tournament_path+conf['log_dir']):
+            if 'match' in n:
+                num = n[ len('match_'): ]
+                if match_n < int(num):
+                    match_n = int(num)
+                    progress_flag = True
+        if progress_flag:
+            pre_match = match_n - 1
+            if pre_match >= 1:
+                message.send(
+                    'match end '
+                    + match_list[ 'match_' + str(pre_match) ]['team_l']
+                    + 'vs'
+                    + match_list[ 'match_' + str(pre_match) ]['team_r']
+                )
+            message.send(
+                'match start '
+                + match_list[ 'match_' + str(match_n) ]['team_l']
+                + 'vs'
+                + match_list[ 'match_' + str(match_n) ]['team_r']
+            )
+            progress_flag = False
+        sleep(5)
+    # if match_n == match_list['max_match']:
+    #     if os.path.exists( tournament_path + conf['log_dir'] +'/match_'+ str(match_n) +'/match.yml' ):
+    #         message.send(
+    #             'match end '
+    #             + match_list[ 'match_' + str(match_n) ]['team_l']
+    #             + 'vs'
+    #             + match_list[ 'match_' + str(match_n) ]['team_r']
+    #        )
+#    print(match_n)
+
 
 # @listen_to(r'^country \w+')
 # @in_channel(organize_ch_n)
@@ -188,6 +258,7 @@ def cool_func(message):
 
 #     else:
 #         message.send("miss args:"+texts)
+
 
 @respond_to(r'^upload start$')
 def listen_func(message):
