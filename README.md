@@ -107,12 +107,10 @@ tournament_path='/home/user/competition-manager/tournament/'
 ```
 
 ### resultsの設定
-- tournamentの設定でmode_groupを使用する場合は必要なし
-- tournamentの設定でmode_single_matchを使用する場合
-  - google spreadsheetの設定jsonファイルを設置
-  - competition-manager/slackserver/gametools/resultsにある
-  ggssapi_gameresult.pyとstanding.pyの設定jsonファイルへのパスとドキュ
-  メントIDを設定
+tournamentの設定でmode_groupを使用する場合は必要なし
+tournamentの設定でmode_single_matchを使用する場合
+- google spreadsheetの設定jsonファイルを設置
+- competition-manager/slackserver/gametools/resultsにあるggssapi_gameresult.pyとstanding.pyの設定jsonファイルへのパスとドキュメントIDを設定
 ```
 path='to/json/path.json'
 doc_id='[document_id]'
@@ -151,11 +149,23 @@ gameflag false
 ```
 
 ### 管理者用チャンネルで可能なコマンド
-コマンドの説明
+- コマンドの説明
 ```
 help
 ```
-バイナリテスト完了チームリストの表示
+- バイナリテスト完了チームリストの表示
 ```
 team
+```
+- トーナメントのグループ作成
+```
+group* teamA,teamB,teamC,...
+```
+- トーナメントの開始
+```
+start group*
+```
+- トーナメントを開始後，以下のコマンドで試合の進行を通知
+```
+announce match
 ```
