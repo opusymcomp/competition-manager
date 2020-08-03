@@ -135,11 +135,27 @@ $ python ./run.py
 このコマンド後は，slack上で操作
 
 
-管理者のid設定で設定したuserでslackbotにDMでバイナリ受け入れ開始コマンドを送信
+### 管理者のidに設定したuserで可能なコマンド
+- slackbotにDMでバイナリ受け入れ開始コマンドを送信
 ```
 upload start
+upload end
+```
+- バイナリテスト完了チームリストの初期化
+```
+clear qualification
+```
+- 試合中フラグの初期化
+```
+gameflag false
 ```
 
+### 管理者用チャンネルで可能なコマンド
+コマンドの説明
 ```
-upload end
+help
+```
+バイナリテスト完了チームリストの表示
+```
+team
 ```
