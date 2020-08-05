@@ -182,6 +182,7 @@ announce match
 - チームバイナリの準備をする
   1. チームディレクトリを用意する．この時，チーム名とチームディレクトリの名前は同じにしておく
   2. チームディレクトリの中から必要なファイルを残し，それ以外のものは削除する．また，後述するstartとkill以外のファイルに関するディレクトリ構造に制限はない．
+
   必要なファイルの例は以下の通り．例としてagent2dのパスを挙げておく．
      - coach.conf：agent2d-3.1.1/src/coach.conf
 	 - player.conf：agent2d-3.1.1/src/player.conf
@@ -209,16 +210,18 @@ coach_config="coach.conf"
   6. 起動が確認できたら.tar.gz形式に圧縮する．上の部分で決定したチームネームの名前にする．
 
 チームディレクトリの例
-  Example_team
-  ├── ※lib (ライブラリディレクトリ)
-  ├── formations-dt
-  ├── coach.conf
-  ├── kill
-  ├── player.conf
-  ├── sample_coach
-  ├── sample_player
-  ├── start
-  └── start.sh (起動確認用)
+```
+Example_team
+├── ※lib (ライブラリディレクトリ)
+├── formations-dt
+├── coach.conf
+├── kill
+├── player.conf
+├── sample_coach
+├── sample_player
+├── start
+└── start.sh (起動確認用)
+```
 
 ※参考：[librcsc](http://rctools.osdn.jp/pukiwiki/index.php?librcsc)のインストール
 - インストール > 指定位置へインストールする場合（推奨）
