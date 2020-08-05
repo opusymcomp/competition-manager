@@ -183,28 +183,28 @@ announce match
   1. チームディレクトリを用意する．この時，チーム名とチームディレクトリの名前は同じにしておく
   2. チームディレクトリの中から必要なファイルを残し，それ以外のものは削除する．また，後述するstartとkill以外のファイルに関するディレクトリ構造に制限はない．
   必要なファイルの例は以下の通り．例としてagent2dのパスを挙げておく．
-    - coach.conf：agent2d-3.1.1/src/coach.conf
-	- player.conf：agent2d-3.1.1/src/player.conf
-	- sample_coach：agent2d-3.1.1/src/sample_coach
-	- sample_player：agent2d-3.1.1/src/sample_player
-	- フォーメーションのconfファイル：
-	  - agent2d-3.1.1/src/formations-dt
-	  - agent2d-3.1.1/src/formations-keeper
-	  - agent2d-3.1.1/src/formations-taker
-  3.整理したディレクトリの中に以下のディレクトリとファイルを入れる．
-    - ライブラリディレクトリ
-	- [start](https://drive.google.com/file/d/1UizYFqT5FSlhuAR-Hd6yCyXuuRcYdq6D/view?usp=sharing)
-	- [kill](https://drive.google.com/file/d/1HUDek415-KXovcY4msK3wIBIXzICR8Kt/view?usp=sharing)
-  4.startファイルを書き換える
+     - coach.conf：agent2d-3.1.1/src/coach.conf
+	 - player.conf：agent2d-3.1.1/src/player.conf
+	 - sample_coach：agent2d-3.1.1/src/sample_coach
+	 - sample_player：agent2d-3.1.1/src/sample_player
+	 - フォーメーションのconfファイル：
+	   - agent2d-3.1.1/src/formations-dt
+	   - agent2d-3.1.1/src/formations-keeper
+	   - agent2d-3.1.1/src/formations-taker
+  3. 整理したディレクトリの中に以下のディレクトリとファイルを入れる．
+     - ライブラリディレクトリ
+	 - [start](https://drive.google.com/file/d/1UizYFqT5FSlhuAR-Hd6yCyXuuRcYdq6D/view?usp=sharing)
+	 - [kill](https://drive.google.com/file/d/1HUDek415-KXovcY4msK3wIBIXzICR8Kt/view?usp=sharing)
+  4. startファイルを書き換える
   以下の部分をチームに対応する用に変更する
-  '''
-  teamname="agent2d"
-  player="./sample_player"
-  coach="./sample_coach"
-  config="player.conf"
-  config_dir="formation-dt"
-  coach_config="coach.conf"
-  '''
+```
+teamname="agent2d"
+player="./sample_player"
+coach="./sample_coach"
+config="player.conf"
+config_dir="formation-dt"
+coach_config="coach.conf"
+```
   5. ~/直下にチームディレクトリを配置して起動するか確認する
   6. 起動が確認できたら.tar.gz形式に圧縮する．上の部分で決定したチームネームの名前にする．
 
@@ -224,16 +224,16 @@ Example_team
 - インストール > 指定位置へインストールする場合（推奨）
 
 - アップロード
- 1. チームアップロードの準備ができているか確認
- 	- チームディレクトリ名と圧縮後ファイル名が試合中のチーム名と同じになっているか確認
- 	  - チーム名 team2020 の場合
-	  /team2020 /team2020.tar.gz
- 2. GameManager(bot)のDMで"bin [teamname]"を入力&バイナリ添付
- 	- チーム名がagent2dの場合，"bin agent2d"
-	- 添付時，アップロードが完了するまで待つ
-	  - 容量が大きい場合はアップロード完了してからも10秒程待つ
-	- 一度に何度も送らないようにする
- 3. test完了メッセージを待つ
- 4. test completeと表示されれば完了
- 	- その他のメッセージが表示されて中止された場合，バイナリを確認してやり直す
-	- わからない場合は運営に確認する
+  1. チームアップロードの準備ができているか確認
+  	 - チームディレクトリ名と圧縮後ファイル名が試合中のチーム名と同じになっているか確認
+ 	 - チーム名 team2020 の場合
+	 /team2020 /team2020.tar.gz
+  2. GameManager(bot)のDMで"bin [teamname]"を入力&バイナリ添付
+ 	 - チーム名がagent2dの場合，"bin agent2d"
+	 - 添付時，アップロードが完了するまで待つ
+	   - 容量が大きい場合はアップロード完了してからも10秒程待つ
+	 - 一度に何度も送らないようにする
+  3. test完了メッセージを待つ
+  4. test completeと表示されれば完了
+ 	 - その他のメッセージが表示されて中止された場合，バイナリを確認してやり直す
+	 - わからない場合は運営に確認する
