@@ -176,14 +176,12 @@ announce match
 # Participants
 
 ## バイナリアップロード
-- 管理者にslackで使用しているメールアドレスを以下のファイルに記入してもらう
+- 管理者にチームをアップロードする人のslackで使用しているメールアドレスを以下のファイルに記入してもらう
 `competition-manager/test/maillist.txt`
 
 - チームバイナリの準備をする
   1. チームディレクトリを用意する．この時，チーム名とチームディレクトリの名前は同じにしておく
-  2. チームディレクトリの中から必要なファイルを残し，それ以外のものは削除する．また，後述するstartとkill以外のファイルに関するディレクトリ構造に制限はない．
-
-  必要なファイルの例は以下の通り．例としてagent2dのパスを挙げておく．
+  2. チームディレクトリの中から必要なファイルを残し，それ以外のものは削除する．また，後述するstartとkill以外のファイルに関するディレクトリ構造に制限はない．例として agent2d の場合の必要なファイルを以下に挙げる．
      - coach.conf：agent2d-3.1.1/src/coach.conf
 	 - player.conf：agent2d-3.1.1/src/player.conf
 	 - sample_coach：agent2d-3.1.1/src/sample_coach
@@ -223,8 +221,7 @@ Example_team
 └── start.sh (起動確認用)
 ```
 
-※参考：[librcsc](http://rctools.osdn.jp/pukiwiki/index.php?librcsc)のインストール
-- インストール > 指定位置へインストールする場合（推奨）
+※参考：[librcsc](http://rctools.osdn.jp/pukiwiki/index.php?librcsc)の指定位置へインストールする場合
 
 - アップロード
   1. チームアップロードの準備ができているか確認
