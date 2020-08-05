@@ -209,16 +209,16 @@ coach_config="coach.conf"
   6. 起動が確認できたら.tar.gz形式に圧縮する．上の部分で決定したチームネームの名前にする．
 
 チームディレクトリの例
-Example_team
-├── ※lib (ライブラリディレクトリ)
-├── formations-dt
-├── coach.conf
-├── kill
-├── player.conf
-├── sample_coach
-├── sample_player
-├── start
-└── start.sh (起動確認用)
+  Example_team
+  ├── ※lib (ライブラリディレクトリ)
+  ├── formations-dt
+  ├── coach.conf
+  ├── kill
+  ├── player.conf
+  ├── sample_coach
+  ├── sample_player
+  ├── start
+  └── start.sh (起動確認用)
 
 ※参考：[librcsc](http://rctools.osdn.jp/pukiwiki/index.php?librcsc)のインストール
 - インストール > 指定位置へインストールする場合（推奨）
