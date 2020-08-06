@@ -327,8 +327,8 @@ def file_download(message):
             else:
                 list_flag = False
     global game_flag
+    err_flag = False
     if bin_flag == True and list_flag == True and not game_flag:
-        game_flag=True
         teamname = message.body['text']
         teamname =  ''.join(teamname[4:])
         print("test teamname:",teamname)
@@ -345,8 +345,10 @@ def file_download(message):
             message.send(msg)
         elif result == 'file type is not applicable.':
             message.send('ファイルのタイプがアップロード対象外です')
+            err_flag = True
         else:
             message.send('ファイルのアップロードに失敗しました')
+            err_flag = True
 
         sleep(5)
         subprocess.run(['../../test/extend.sh', teamname])
@@ -356,8 +358,10 @@ def file_download(message):
         teamfiles = os.listdir( teamdir )
         if "start" not in teamfiles:
             message.send("no start")
+            err_flag = True
         if "kill" not in teamfiles:
             message.send("no kill")
+            err_flag = True
         if "team.yml" not in teamfiles:
             ty_dict={ "country": teamname }
             with open( teamdir+"/team.yml", 'w' ) as ty_w:
@@ -365,46 +369,48 @@ def file_download(message):
         for excecuted in teamfiles:
             os.chmod(teamdir+"/"+excecuted, 0o777)
 
-        test_result = subprocess.run(['../../test/autotest.sh', teamname], encoding='utf-8', stdout=subprocess.PIPE )
-        message.send('binary test finish')
-        discon_index = test_result.stdout.find('DisconnectedPlayer')
-        nl_index = test_result.stdout[discon_index:].find('\n')
-        discon_p = test_result.stdout[ discon_index + len('DisconnectedPlayer'):discon_index + nl_index ]
-        print('discon_p',discon_p)
-        if int(discon_p) == 0:
-            q_path = '../../test/qualification.txt'
-            time = datetime.datetime.now().strftime('%Y%m%d%H%M')
-            if os.path.exists(q_path):
-                with open( q_path, 'r' ) as q_txt:
-                    q_teams = q_txt.readlines()
-                q_teams_row = "".join(q_teams)
-                if teamname not in q_teams_row:
-                    with open( q_path, 'a+' ) as q_txt_ad:
-                        q_txt_ad.writelines(teamname+','+time+'\n')
+        if not err_flag:
+            game_flag=True
+            test_result = subprocess.run(['../../test/autotest.sh', teamname], encoding='utf-8', stdout=subprocess.PIPE )
+            message.send('binary test finish')
+            discon_index = test_result.stdout.find('DisconnectedPlayer')
+            nl_index = test_result.stdout[discon_index:].find('\n')
+            discon_p = test_result.stdout[ discon_index + len('DisconnectedPlayer'):discon_index + nl_index ]
+            print('discon_p',discon_p)
+            if int(discon_p) == 0:
+                q_path = '../../test/qualification.txt'
+                time = datetime.datetime.now().strftime('%Y%m%d%H%M')
+                if os.path.exists(q_path):
+                    with open( q_path, 'r' ) as q_txt:
+                        q_teams = q_txt.readlines()
+                    q_teams_row = "".join(q_teams)
+                    if teamname not in q_teams_row:
+                        with open( q_path, 'a+' ) as q_txt_ad:
+                            q_txt_ad.writelines(teamname+','+time+'\n')
+                    else:
+                        mod_q=[]
+                        for line in q_teams:
+                            if teamname in line:
+                                line=teamname+','+time+'\n'
+                                mod_q.append(line)
+                            else:
+                                mod_q.append(line)
+                        with open( q_path, 'w' ) as q_txt_ad:
+                            q_txt_ad.writelines(mod_q)
                 else:
-                    mod_q=[]
-                    for line in q_teams:
-                        if teamname in line:
-                            line=teamname+','+time+'\n'
-                            mod_q.append(line)
-                        else:
-                            mod_q.append(line)
-                    with open( q_path, 'w' ) as q_txt_ad:
-                        q_txt_ad.writelines(mod_q)
+                    with open( q_path, 'w' ) as q_txt:
+                        q_txt.writelines(teamname+','+time+'\n')
+                msg = 'binary test complete'
+                ori_channel=message.body['channel']
+                message.body['channel']='C013QBT5L4R'
+                message.send(msg)
+                message.body['channel']=ori_channel
+                message.send(msg)
+            elif int(discon_p) > 0:
+                message.send('disconnected player(s) ' + discon_p)
             else:
-                with open( q_path, 'w' ) as q_txt:
-                    q_txt.writelines(teamname+','+time+'\n')
-            msg = 'binary test complete'
-            ori_channel=message.body['channel']
-            message.body['channel']='C013QBT5L4R'
-            message.send(msg)
-            message.body['channel']=ori_channel
-            message.send(msg)
-        elif int(discon_p) > 0:
-            message.send('disconnected player(s) ' + discon_p)
-        else:
-            message.send('test failed')
-        game_flag=False
+                message.send('test failed')
+            game_flag=False
     elif game_flag:
         message.reply("do not start a game while other game")
     else:
