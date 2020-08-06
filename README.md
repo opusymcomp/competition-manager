@@ -39,7 +39,7 @@ $ pip install pyyaml
 ### slackbotの設定
 まず[Slack](https://slack.com/get-started#/create)のアカウントを作成する．
 
-次に，[Slackbot](https://api.slack.com/bot-users)を作成する.
+次に，[Slackbot](https://my.slack.com/services/new/bot)を作成する.
 
 その後，APIトークンを作成し，次のファイルに記入する．
 ```
@@ -194,8 +194,7 @@ announce match
      - ライブラリディレクトリ
 	 - [start](https://drive.google.com/file/d/1UizYFqT5FSlhuAR-Hd6yCyXuuRcYdq6D/view?usp=sharing)
 	 - [kill](https://drive.google.com/file/d/1HUDek415-KXovcY4msK3wIBIXzICR8Kt/view?usp=sharing)
-  4. startファイルを書き換える
-  以下の部分をチームに対応する用に変更する
+  4. startファイルを書き換える．以下の部分をチームに対応する用に変更する
 ```
 teamname="agent2d"
 player="./sample_player"
