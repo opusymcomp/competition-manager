@@ -54,5 +54,9 @@ def getChannelID( message, name ):
     if name == info['name']:
       return id_num
 
+def getChannelMembers( message, channel_name ):
+  channel_id = getChannelID(message, channel_name)
+  return message.channel._client.channels[channel_id]['members']
+
 if __name__ == '__main__':
     getOpponent()

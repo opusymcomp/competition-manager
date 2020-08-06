@@ -33,7 +33,6 @@ announce_ch_n="general"
 # organize_ch_n=conf["channel"]
 # organizer_id=conf["id"]
 
-
 if os.environ.get("PATH"):
     os.environ["PATH"]=loganalyzer_path+":"+os.environ["PATH"]
 else:
@@ -267,7 +266,8 @@ def listen_func(message):
 @respond_to(r'^upload start$')
 def listen_func(message):
     print(message.body['user'])
-    if message.body['user'] == organizer_id: #organizer's id
+    org_mem = tl.getChannelMembers(message, organize_ch_n)
+    if message.body['user'] in org_mem: #organizer's id
         global bin_flag
         bin_flag = True
         print('bin_flag', bin_flag)
@@ -279,7 +279,8 @@ def listen_func(message):
 
 @respond_to(r'^upload end$')
 def listen_func(message):
-    if message.body['user'] == organizer_id: #organizer's id
+    org_mem = tl.getChannelMembers(message, organize_ch_n)
+    if message.body['user'] in org_mem: #organizer's id
         global bin_flag
         bin_flag = False
         print('bin_flag', bin_flag)
@@ -291,7 +292,8 @@ def listen_func(message):
 
 @respond_to(r'^gameflag false$')
 def listen_func(message):
-    if message.body['user'] == organizer_id: #organizer's id
+    org_mem = tl.getChannelMembers(message, organize_ch_n)
+    if message.body['user'] in org_mem:  #organizer's id
         global game_flag
         game_flag = False
         msg = 'enable to start a game'
@@ -373,7 +375,7 @@ def file_download(message):
         for excecuted in teamfiles:
             os.chmod(teamdir+"/"+excecuted, 0o777)
 
-        if not err_flag:
+        if not err_flag and not game_flag:
             game_flag=True
             test_result = subprocess.run(['../../test/autotest.sh', teamname], encoding='utf-8', stdout=subprocess.PIPE )
             message.send('binary test finish')
@@ -415,6 +417,8 @@ def file_download(message):
             else:
                 message.send('test failed')
             game_flag=False
+        elif game_flag:
+            message.reply("Another team is testing.\n Just a moment, please.")
     elif game_flag:
         message.reply("do not start a game while other game")
     else:
@@ -423,7 +427,8 @@ def file_download(message):
 
 @respond_to('^clear qualification$')
 def file_download(message):
-    if message.body['user'] == organizer_id: #organizer's id
+    org_mem = tl.getChannelMembers(message, organize_ch_n)
+    if message.body['user'] in org_mem: #organizer's id
         q_path = '../../test/qualification.txt'
         if os.path.exists(q_path):
             with open( q_path, 'w' ) as q_txt:
