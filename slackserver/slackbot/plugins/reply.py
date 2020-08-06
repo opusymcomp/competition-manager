@@ -28,6 +28,7 @@ bin_flag=False
 organizer_id="ORGANIZER_ID"
 game_flag=False
 announce_ch_n="general"
+test_flag=False
 # with open( "./conf.yml" ) as fy_r:
 #     conf = yaml.safe_load( fy_r )
 # organize_ch_n=conf["channel"]
@@ -302,6 +303,18 @@ def listen_func(message):
         msg = 'Not allowed'
         message.reply(msg)
 
+@respond_to(r'^testflag false$')
+def listen_func(message):
+    org_mem = tl.getChannelMembers(message, organize_ch_n)
+    if message.body['user'] in org_mem:  #organizer's id
+        global test_flag
+        test_flag = False
+        msg = 'enable to start a test'
+        message.reply(msg)
+    else:
+        msg = 'Not allowed'
+        message.reply(msg)
+
 # @respond_to(r'^adding$')
 # def listen_func(message):
 #     if message.body['user'] == organizer_id: #organizer's id
@@ -333,8 +346,10 @@ def file_download(message):
             else:
                 list_flag = False
     global game_flag
+    global test_flag
     err_flag = False
-    if bin_flag == True and list_flag == True and not game_flag:
+    if bin_flag == True and list_flag == True and not game_flag and not test_flag:
+        test_flag = True
         teamname = message.body['text']
         teamname =  ''.join(teamname[4:])
         print("test teamname:",teamname)
@@ -358,24 +373,28 @@ def file_download(message):
 
         sleep(5)
         subprocess.run(['../../test/extend.sh', teamname])
-        message.send('binary test start (please wait approx. 1 min.)')
 
         teamdir = home + teamname
-        teamfiles = os.listdir( teamdir )
-        if "start" not in teamfiles:
-            message.send("no start")
+        if os.path.isdir(teamdir):
+            teamfiles = os.listdir( teamdir )
+            if "start" not in teamfiles:
+                message.send("no start")
+                err_flag = True
+            if "kill" not in teamfiles:
+                message.send("no kill")
+                err_flag = True
+            if "team.yml" not in teamfiles:
+                ty_dict={ "country": teamname }
+                with open( teamdir+"/team.yml", 'w' ) as ty_w:
+                    yaml.dump( ty_dict, ty_w, default_flow_style=False )
+            for excecuted in teamfiles:
+                os.chmod(teamdir+"/"+excecuted, 0o777)
+        else:
             err_flag = True
-        if "kill" not in teamfiles:
-            message.send("no kill")
-            err_flag = True
-        if "team.yml" not in teamfiles:
-            ty_dict={ "country": teamname }
-            with open( teamdir+"/team.yml", 'w' ) as ty_w:
-                yaml.dump( ty_dict, ty_w, default_flow_style=False )
-        for excecuted in teamfiles:
-            os.chmod(teamdir+"/"+excecuted, 0o777)
+            message.send("uploading binary is too fast.\n please wait approx. 10 seconds after uploading binary is completed")
 
         if not err_flag and not game_flag:
+            message.send('binary test start (please wait approx. 1 min.)')
             game_flag=True
             test_result = subprocess.run(['../../test/autotest.sh', teamname], encoding='utf-8', stdout=subprocess.PIPE )
             message.send('binary test finish')
@@ -417,8 +436,12 @@ def file_download(message):
             else:
                 message.send('test failed')
             game_flag=False
+            test_flag=False
         elif game_flag:
             message.reply("Another team is testing.\n Just a moment, please.")
+            test_flag=False
+        elif err_flag:
+            test_flag=False
     elif game_flag:
         message.reply("do not start a game while other game")
     else:
