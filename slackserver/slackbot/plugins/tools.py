@@ -49,5 +49,10 @@ def saveGroup(setting):
     os.chdir(currentpath)
     return gtxt
 
+def getChannelID( message, name ):
+  for id_num, info in message.channel._client.channels.items():
+    if name == info['name']:
+      return id_num
+
 if __name__ == '__main__':
     getOpponent()
