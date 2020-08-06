@@ -27,6 +27,7 @@ organize_ch_n="organizer"
 bin_flag=False
 organizer_id="ORGANIZER_ID"
 game_flag=False
+announce_ch_n="general"
 # with open( "./conf.yml" ) as fy_r:
 #     conf = yaml.safe_load( fy_r )
 # organize_ch_n=conf["channel"]
@@ -82,7 +83,7 @@ def cool_func(message):
         message.reply(msg)
         message.react('+1')
         ori_channel=message.body['channel']
-        message.body['channel']='C0115Q2KZK8'
+        message.body['channel']=tl.getChannelID(message, announce_ch_n)
         message.send(msg)
         message.body['channel']=ori_channel
         message.send(msg)
@@ -214,19 +215,22 @@ def listen_func(message):
                     progress_flag = True
         if progress_flag:
             pre_match = match_n - 1
+
             if pre_match >= 1:
-                message.send(
-                    'match end '
-                    + match_list[ 'match_' + str(pre_match) ]['team_l']
-                    + 'vs'
-                    + match_list[ 'match_' + str(pre_match) ]['team_r']
-                )
-            message.send(
-                'match start '
-                + match_list[ 'match_' + str(match_n) ]['team_l']
-                + 'vs'
-                + match_list[ 'match_' + str(match_n) ]['team_r']
-            )
+                msg='match end '+ match_list[ 'match_' + str(pre_match) ]['team_l']+ 'vs'+ match_list[ 'match_' + str(pre_match) ]['team_r']
+                message.send(msg)
+                ori_channel = message.body['channel']
+                message.body['channel']=tl.getChannelID(message, announce_ch_n)
+                message.send(msg)
+                message.body['channel']=ori_channel
+
+            msg = 'match start '+ match_list[ 'match_' + str(match_n) ]['team_l']+ 'vs'+ match_list[ 'match_' + str(match_n) ]['team_r']
+            message.send(msg)
+            ori_channel = message.body['channel']
+            message.body['channel']=tl.getChannelID(message, announce_ch_n)
+            message.send(msg)
+            message.body['channel']=ori_channel
+
             progress_flag = False
         sleep(5)
     # if match_n == match_list['max_match']:
@@ -339,7 +343,7 @@ def file_download(message):
         if result == 'ok':
             msg = 'binary upload complete'
             ori_channel=message.body['channel']
-            message.body['channel']='C013QBT5L4R'
+            message.body['channel']=tl.getChannelID(message, organize_ch_n)
             message.send(msg)
             message.body['channel']=ori_channel
             message.send(msg)
@@ -402,7 +406,7 @@ def file_download(message):
                         q_txt.writelines(teamname+','+time+'\n')
                 msg = 'binary test complete'
                 ori_channel=message.body['channel']
-                message.body['channel']='C013QBT5L4R'
+                message.body['channel']=tl.getChannelID(message, organize_ch_n)
                 message.send(msg)
                 message.body['channel']=ori_channel
                 message.send(msg)
