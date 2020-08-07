@@ -227,7 +227,8 @@ Example_team
   	 - チームディレクトリ名と圧縮後ファイル名が試合中のチーム名と同じになっているか確認
  	 - チーム名 team2020 の場合
 	 /team2020 /team2020.tar.gz
-  3. GameManager(bot)のDMで"bin [teamname]"を入力&バイナリ添付
+  3. Slackのサイドバー"App"からCompetition-Manager(bot)を選択し，ダイ
+  レクトメッセージで"bin [teamname]"を入力&バイナリ添付
  	 - チーム名がagent2dの場合，"bin agent2d"
 	 - 添付時，アップロードが完了するまで待つ
 	   - 容量が大きい場合はアップロード完了してからも10秒程待つ
