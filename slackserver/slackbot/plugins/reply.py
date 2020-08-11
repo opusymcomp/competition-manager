@@ -344,12 +344,12 @@ def listen_func(message):
 #                 with open( mail_path, 'a+' ) as q_txt_ad:
 #                     q_txt_ad.writelines(email+'\n')
 #             message.reply("add mail")
-@respond_to('^test$')
-def listen_func(message):
-    path = './test.txt'
-    with open(path, 'w') as txt:
-        txt.write('test')
-    tl.upload_file(message.body['channel'], path, 'testlog')
+# @respond_to('^test$')
+# def listen_func(message):
+#     path = './test.txt'
+#     with open(path, 'w') as txt:
+#         txt.write('test')
+#     tl.upload_file(message.body['channel'], path, 'testlog')
 
 @respond_to('^bin \w+')
 def file_download(message):
