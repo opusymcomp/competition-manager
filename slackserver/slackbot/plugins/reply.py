@@ -89,7 +89,6 @@ def cool_func(message):
         message.body['channel'] = tl.getChannelID(message, announce_ch_n)
         message.send(msg)
         message.body['channel'] = ori_channel
-        message.send(msg)
 
         game_flag = True
         with open(config_yml) as fy_r:
@@ -131,6 +130,13 @@ def cool_func(message):
                     message.send(msg)
 
                     subprocess.run([tournament_path + 'start.sh', '--config=' + config])
+
+                    # arg=[]
+                    # arg.append(tournament_path)
+                    # arg.append(conf['log_dir'])
+                    # arg.extend(roundrobin)
+                    # arg = " ".join(arg)
+                    # result = subprocess.run( ['../gametools/results/result.sh', str(arg)] )
 
                     rank = subprocess.run(['../gametools/results/rank.sh', str(group)], encoding='utf-8',
                                           stdout=subprocess.PIPE)
@@ -181,6 +187,11 @@ def cool_func(message):
             match_dict['max_match'] = max_match
             with open('./match_list.yml', 'w') as fw:
                 yaml.dump(match_dict, fw, default_flow_style=False)
+
+            group_match = subprocess.run(
+                [tournament_path + 'start.sh', '--config='+config],
+                encoding='utf-8',
+                stdout=subprocess.PIPE )
 
         dt_finish = datetime.datetime.now().strftime('%Y%m%d%H%M')
         msg += 'The ' + group + ' finish! \n Finish time : ' + dt_finish
@@ -333,6 +344,12 @@ def listen_func(message):
 #                 with open( mail_path, 'a+' ) as q_txt_ad:
 #                     q_txt_ad.writelines(email+'\n')
 #             message.reply("add mail")
+@respond_to('^test$')
+def listen_func(message):
+    path = './test.txt'
+    with open(path, 'w') as txt:
+        txt.write('test')
+    tl.upload_file(message.body['channel'], path, 'testlog')
 
 @respond_to('^bin \w+')
 def file_download(message):
@@ -355,6 +372,7 @@ def file_download(message):
         teamname = message.body['text']
         teamname = ''.join(teamname[4:])
         print("test teamname:", teamname)
+        teamdir = home + teamname
         file_types = ['tar.gz']
         download_file = dl.DownloadFile(file_types, home)
         result = download_file.exe_download(message._body['files'][0])
@@ -376,7 +394,6 @@ def file_download(message):
         sleep(5)
         subprocess.run(['../../test/extend.sh', teamname])
 
-        teamdir = home + teamname
         if os.path.isdir(teamdir):
             teamfiles = os.listdir(teamdir)
             if "start" not in teamfiles:
@@ -400,8 +417,15 @@ def file_download(message):
             message.send('binary test start (please wait approx. 1 min.)')
             game_flag = True
             test_result = subprocess.run(['../../test/autotest.sh', teamname], encoding='utf-8', stdout=subprocess.PIPE)
-            message.send("stdout\n━━━━━━━━━━━━━━━━━━━━\n" + test_result.stdout +
-                         '\n━━━━━━━━━━━━━━━━━━━━\nbinary test finish')
+            log_path = teamdir + '/testlog.txt'
+            with open(log_path, 'w') as logtxt:
+                logtxt.write(test_result.stdout)
+            tl.upload_file(
+                message.body['channel'],
+                log_path,
+                'binary test finish\n stdout'
+            )
+
             discon_index = test_result.stdout.find('DisconnectedPlayer')
             nl_index = test_result.stdout[discon_index:].find('\n')
             discon_p = test_result.stdout[discon_index + len('DisconnectedPlayer'):discon_index + nl_index]
