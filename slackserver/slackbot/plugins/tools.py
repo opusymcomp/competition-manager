@@ -58,5 +58,20 @@ def getChannelMembers( message, channel_name ):
   channel_id = getChannelID(message, channel_name)
   return message.channel._client.channels[channel_id]['members']
 
+def upload_file( channel_id, file_path, comment ):
+  file_name = os.path.basename(file_path)
+  param = {
+    'token':slackbot_settings.API_TOKEN,
+    'channels':channel_id,
+    'filename':file_name,
+    'initial_comment':comment,
+    'title':file_name
+  }
+  files = {
+    'file': open(file_path, 'rb')
+  }
+  upload_url = "https://slack.com/api/files.upload"
+  requests.post( url=upload_url, params=param, files=files)
+
 if __name__ == '__main__':
     getOpponent()
