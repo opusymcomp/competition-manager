@@ -5,6 +5,7 @@ import subprocess
 import plugins.bin_download as dl
 import os
 import yaml
+import shutil
 
 from slackbot.bot import respond_to
 from slackbot.bot import listen_to
@@ -392,6 +393,14 @@ def file_download(message):
             err_flag = True
 
         sleep(5)
+
+        if os.path.isdir(teamdir):
+            preT_path = home + 'preteams/'
+            os.makedirs( preT_path, exist_ok = True )
+            if os.path.isdir( preT_path + teamname ):
+                shutil.rmtree( preT_path + teamname )
+            shutil.move( teamdir, preT_path )
+
         subprocess.run(['../../test/extend.sh', teamname])
 
         if os.path.isdir(teamdir):
