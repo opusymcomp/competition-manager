@@ -386,7 +386,10 @@ def file_download(message):
         teamdir = home + teamname
         file_types = ['tar.gz']
         download_file = dl.DownloadFile(file_types, home)
-        result = download_file.exe_download(message._body['files'][0])
+        if 'files' in message._body.keys():
+            result = download_file.exe_download(message._body['files'][0])
+        else:
+            result = 'empty'
         print("bin download ", result)
         if result == 'ok':
             msg = 'binary upload complete'
@@ -397,6 +400,9 @@ def file_download(message):
             message.send(msg)
         elif result == 'file type is not applicable.':
             message.send('ファイルのタイプがアップロード対象外です')
+            err_flag = True
+        elif result == 'empty':
+            message.send('ファイルが添付されていません')
             err_flag = True
         else:
             message.send('ファイルのアップロードに失敗しました')
