@@ -223,16 +223,26 @@ def listen_func(message):
             pre_match = match_n - 1
 
             if pre_match >= 1:
-                msg = 'match end ' + match_list['match_' + str(pre_match)]['team_l'] + 'vs' + \
-                      match_list['match_' + str(pre_match)]['team_r']
+                with open( tournament_path + conf['log_dir'] + '/results.log', 'r') as r_log:
+                    log_lines = r_log.readlines()
+                header = log_lines[0].split(',')
+                elm = log_lines[-1].split(',')
+                result_line_dict = { header[i].strip():elm[i].strip() for i in range( len(header) ) }
+
+                msg = 'match end\n' \
+                      + match_list['match_' + str(pre_match)]['team_l'] + '_' \
+                      + result_line_dict['left score'] + ' vs ' \
+                      + result_line_dict['right score'] + '_' \
+                      + match_list['match_' + str(pre_match)]['team_r']
                 message.send(msg)
                 ori_channel = message.body['channel']
                 message.body['channel'] = tl.getChannelID(message, announce_ch_n)
                 message.send(msg)
                 message.body['channel'] = ori_channel
 
-            msg = 'match start ' + match_list['match_' + str(match_n)]['team_l'] + 'vs' + \
-                  match_list['match_' + str(match_n)]['team_r']
+            msg = 'match start\n' \
+                  + match_list['match_' + str(match_n)]['team_l'] + ' vs ' \
+                  + match_list['match_' + str(match_n)]['team_r']
             message.send(msg)
             ori_channel = message.body['channel']
             message.body['channel'] = tl.getChannelID(message, announce_ch_n)
