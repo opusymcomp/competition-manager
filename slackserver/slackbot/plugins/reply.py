@@ -384,7 +384,7 @@ def file_download(message):
         teamname = ''.join(teamname[4:])
         print("test teamname:", teamname)
         teamdir = home + teamname
-        file_types = ['tar.gz']
+        file_types = ['gzip']
         download_file = dl.DownloadFile(file_types, home)
         if 'files' in message._body.keys():
             result = download_file.exe_download(message._body['files'][0])
@@ -433,10 +433,11 @@ def file_download(message):
                     yaml.dump(ty_dict, ty_w, default_flow_style=False)
             for excecuted in teamfiles:
                 os.chmod(teamdir + "/" + excecuted, 0o777)
-        else:
+        elif not err_flag:
             err_flag = True
             message.send(
-                "uploading binary is too fast.\n please wait approx. 10 seconds after uploading binary is completed")
+                "uploading binary is too fast.\n please wait approx. 10 seconds after uploading binary is completed"
+            )
 
         if not err_flag and not game_flag:
             message.send('binary test start (please wait approx. 1 min.)')
