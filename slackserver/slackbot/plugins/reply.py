@@ -384,7 +384,8 @@ def file_download(message):
         teamname = ''.join(teamname[4:])
         print("test teamname:", teamname)
         teamdir = home + teamname
-        file_types = ['gzip']
+        filename = message._body['files'][0]['name']
+        file_types = ['gzip', 'binary']
         download_file = dl.DownloadFile(file_types, home)
         if 'files' in message._body.keys():
             result = download_file.exe_download(message._body['files'][0])
@@ -404,6 +405,9 @@ def file_download(message):
         elif result == 'empty':
             message.send('ファイルが添付されていません')
             err_flag = True
+        elif result == 'type null':
+            message.send('uploading binary may be too fast.\n please wait approx. 10 seconds after uploading binary is completed')
+            err_flag = True
         else:
             message.send('ファイルのアップロードに失敗しました')
             err_flag = True
@@ -417,7 +421,13 @@ def file_download(message):
                 shutil.rmtree( preT_path + teamname )
             shutil.move( teamdir, preT_path )
 
-        subprocess.run(['../../test/extend.sh', teamname])
+        if not err_flag:
+            extract = subprocess.run(['../../test/extend.sh', filename], encoding='utf-8', stdout=subprocess.PIPE)
+            with open('../../test/stdlog.txt', 'r') as std:
+                extractlog = std.read()
+            if 'Error is not recoverable' in extractlog:
+                message.send("uploaded file cannot be extracted")
+                err_flag = True
 
         if os.path.isdir(teamdir):
             teamfiles = os.listdir(teamdir)
@@ -436,7 +446,7 @@ def file_download(message):
         elif not err_flag:
             err_flag = True
             message.send(
-                "uploading binary is too fast.\n please wait approx. 10 seconds after uploading binary is completed"
+                "team directory is not directory or team directory name is different"
             )
 
         if not err_flag and not game_flag:
@@ -456,7 +466,9 @@ def file_download(message):
             nl_index = test_result.stdout[discon_index:].find('\n')
             discon_p = test_result.stdout[discon_index + len('DisconnectedPlayer'):discon_index + nl_index]
             print('discon_p', discon_p)
-            if int(discon_p) == 0:
+            if discon_p == '':
+                message.send('test failed')
+            elif int(discon_p) == 0:
                 q_path = '../../test/qualification.txt'
                 time = datetime.datetime.now().strftime('%Y%m%d%H%M')
                 if os.path.exists(q_path):

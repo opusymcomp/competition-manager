@@ -19,6 +19,8 @@ class DownloadFile:
             # ファイルをダウンロード
             self.file_download(url_private, self.save_directly + file_name)
             return 'ok'
+        elif file_info['filetype'] == '':
+            return 'type null'
         else:
             # 保存対象外ファイル
             return 'file type is not applicable.'
