@@ -24,10 +24,14 @@ organizer_id = "ORGANIZER_ID"
 game_flag = False
 announce_ch_n = "general"
 test_flag = False
+announce_flag = False
 # with open( "./conf.yml" ) as fy_r:
 #     conf = yaml.safe_load( fy_r )
 # organize_ch_n=conf["channel"]
 # organizer_id=conf["id"]
+# announce_ch_n=conf['an_channel']
+# config=conf['conf_path']
+# config_yml = tournament_path + config
 
 if os.environ.get("PATH"):
     os.environ["PATH"] = loganalyzer_path + ":" + os.environ["PATH"]
@@ -193,10 +197,39 @@ def cool_func(message):
                 [tournament_path + 'start.sh', '--config='+config],
                 encoding='utf-8',
                 stdout=subprocess.PIPE )
+        if announce_flag:
+            match_n = 0
+            with open('./match_list.yml') as fr:
+                match_list = yaml.safe_load(fr)
+
+            for n in os.listdir(tournament_path + conf['log_dir']):
+                if 'match' in n:
+                    num = n[len('match_'):]
+                    if match_n < int(num):
+                        match_n = int(num)
+            with open( tournament_path + conf['log_dir'] + '/results.log', 'r') as r_log:
+                log_lines = r_log.readlines()
+            header = log_lines[0].split(',')
+            elm = log_lines[-1].split(',')
+            result_line_dict = { header[i].strip():elm[i].strip() for i in range( len(header) ) }
+
+            msg = 'match end\n' \
+                  + match_list['match_' + str(match_n)]['team_l'] + '_' \
+                  + result_line_dict['left score'] + ' vs ' \
+                  + result_line_dict['right score'] + '_' \
+                  + match_list['match_' + str(match_n)]['team_r']
+            message.send(msg)
+            ori_channel = message.body['channel']
+            message.body['channel'] = tl.getChannelID(message, announce_ch_n)
+            message.send(msg)
+            message.body['channel'] = ori_channel
 
         dt_finish = datetime.datetime.now().strftime('%Y%m%d%H%M')
-        msg += 'The ' + group + ' finish! \n Finish time : ' + dt_finish
+        msg = 'The ' + group + ' finish! \n Finish time : ' + dt_finish
         message.send(msg)
+        message.body['channel'] = tl.getChannelID(message, announce_ch_n)
+        message.send(msg)
+        message.body['channel'] = ori_channel
         game_flag = False
     else:
         message.send("do not start a game while other game")
@@ -208,8 +241,10 @@ def listen_func(message):
     with open(config_yml) as fy_r:
         conf = yaml.safe_load(fy_r)
     match_n = 0
+    global announce_flag
     progress_flag = False
-    while game_flag:
+    while game_flag and not test_flag:
+        announce_flag = True
         with open('./match_list.yml') as fr:
             match_list = yaml.safe_load(fr)
 
@@ -251,6 +286,7 @@ def listen_func(message):
 
             progress_flag = False
         sleep(5)
+    announce_flag = False
     # if match_n == match_list['max_match']:
     #     if os.path.exists( tournament_path + conf['log_dir'] +'/match_'+ str(match_n) +'/match.yml' ):
     #         message.send(
