@@ -174,7 +174,7 @@ announce match
 ```
 
 # Participants
-
+[画像付きマニュアル](https://docs.google.com/document/d/1MCK7K-u6vaTPXFklca4m6ZYC2Izul3Cr4Psi4NJtS-Y/edit#)
 ## バイナリアップロード
 - 管理者にチームをアップロードする人のslackで使用しているメールアドレスを以下のファイルに記入してもらう
 `competition-manager/test/maillist.txt`
