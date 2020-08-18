@@ -25,6 +25,9 @@ game_flag = False
 announce_ch_n = "general"
 test_flag = False
 announce_flag = False
+db_access_token = ''
+db_boot_dir = ''
+dbx_flag = True
 # with open( "./conf.yml" ) as fy_r:
 #     conf = yaml.safe_load( fy_r )
 # organize_ch_n=conf["channel"]
@@ -32,6 +35,12 @@ announce_flag = False
 # announce_ch_n=conf['an_channel']
 # config=conf['conf_path']
 # config_yml = tournament_path + config
+# db_access_token=conf['dbx_token']
+# db_boot_dir=conf['dbx_boot_dir']
+
+if dbx_flag:
+    db = tl.MyDropbox(db_access_token, db_boot_dir)
+    db.createFolder()
 
 if os.environ.get("PATH"):
     os.environ["PATH"] = loganalyzer_path + ":" + os.environ["PATH"]
@@ -213,11 +222,23 @@ def cool_func(message):
             elm = log_lines[-1].split(',')
             result_line_dict = { header[i].strip():elm[i].strip() for i in range( len(header) ) }
 
+            if dbx_flag:
+                match_dir = tournament_path + conf['log_dir'] + '/match_' + str(match_n)
+                db_match_dir = db_boot_dir + '/match_' + str(match_n)
+                db = tl.MyDropbox(db_access_token, db_match_dir)
+                db.createFolder()
+                for match_file in os.listdir(match_dir):
+                    with open( match_dir + '/' + match_file, 'rb') as m_f:
+                        f_body = m_f.read()
+                        db.uploadFiles(f_body, match_file)
+                db_link = db.get_shared_link( db_match_dir )
             msg = 'match end\n' \
                   + match_list['match_' + str(match_n)]['team_l'] + '_' \
                   + result_line_dict['left score'] + ' vs ' \
                   + result_line_dict['right score'] + '_' \
                   + match_list['match_' + str(match_n)]['team_r']
+            if dbx_flag:
+                msg += '\n' + db_link
             message.send(msg)
             ori_channel = message.body['channel']
             message.body['channel'] = tl.getChannelID(message, announce_ch_n)
@@ -264,11 +285,24 @@ def listen_func(message):
                 elm = log_lines[-1].split(',')
                 result_line_dict = { header[i].strip():elm[i].strip() for i in range( len(header) ) }
 
+                if dbx_flag:
+                    match_dir = tournament_path + conf['log_dir'] + '/match_' + str(pre_match)
+                    db_match_dir = db_boot_dir + '/match_' + str(pre_match)
+                    db = tl.MyDropbox(db_access_token, db_match_dir)
+                    db.createFolder()
+                    for match_file in os.listdir(match_dir):
+                        with open( match_dir + '/' + match_file, 'rb') as m_f:
+                            f_body = m_f.read()
+                        db.uploadFiles(f_body, match_file)
+                    db_link = db.get_shared_link( db_match_dir )
+
                 msg = 'match end\n' \
                       + match_list['match_' + str(pre_match)]['team_l'] + '_' \
                       + result_line_dict['left score'] + ' vs ' \
                       + result_line_dict['right score'] + '_' \
                       + match_list['match_' + str(pre_match)]['team_r']
+                if dbx_flag:
+                    msg += '\n' + db_link
                 message.send(msg)
                 ori_channel = message.body['channel']
                 message.body['channel'] = tl.getChannelID(message, announce_ch_n)
@@ -391,12 +425,15 @@ def listen_func(message):
 #                 with open( mail_path, 'a+' ) as q_txt_ad:
 #                     q_txt_ad.writelines(email+'\n')
 #             message.reply("add mail")
+
 # @respond_to('^test$')
 # def listen_func(message):
-#     path = './test.txt'
-#     with open(path, 'w') as txt:
-#         txt.write('test')
-#     tl.upload_file(message.body['channel'], path, 'testlog')
+#     message.send('test')
+#     db = tl.MyDropbox(db_access_token, db_boot_dir)
+#     db.createFolder()
+#     db.viewFiles()
+
+
 
 @respond_to('^bin \w+')
 def file_download(message):
