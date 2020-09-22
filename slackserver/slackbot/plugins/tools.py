@@ -5,6 +5,7 @@ import requests
 import codecs
 import slackbot_settings
 import dropbox
+import yaml
 from slacker import Slacker
 slacker = Slacker(slackbot_settings.API_TOKEN)
 
@@ -36,13 +37,20 @@ def getStartgroup(startgroup):
     f.close()
     return datalist
 
+def getTeamsInGroup(group):
+  path = ('../../tournament/config/group/' + group + '.txt')
+  f = open(path, mode='r+')
+  datalist = [s.split(',') for s in f.readlines()][0]
+  f.close()
+  return datalist
+
 def saveGroup(setting):
     currentpath = os.getcwd()
     #home = os.environ['HOME']
     if not os.path.isdir('../../tournament/config/group'):
       os.makedirs('../../tournament/config/group')
     os.chdir("../../tournament/config/group")
-    group =  ''.join(setting[:6])
+    group = setting[0] # ''.join(setting[:6])
     gtxt = group + '.txt'
     cmd = 'touch %s' % gtxt
     subprocess.run(cmd, shell=True)
@@ -73,6 +81,49 @@ def upload_file( channel_id, file_path, comment ):
   }
   upload_url = "https://slack.com/api/files.upload"
   requests.post( url=upload_url, params=param, files=files)
+
+
+def writeYml( path, key, items ):
+  if os.path.exists( path ):
+    with open( path ) as fy:
+      yaml_conf = yaml.safe_load(fy)
+  else:
+    yaml_conf = {}
+
+  yaml_conf[key] = items
+
+  with open( path, 'w' ) as fy_w:
+    yaml.dump( yaml_conf, fy_w, default_flow_style=False )
+
+def addYml( path, key, items ):
+  if os.path.exists( path ):
+    with open( path ) as fy:
+      yaml_conf = yaml.safe_load(fy)
+  else:
+    yaml_conf = {}
+    print('not exist yaml file')
+
+  yaml_conf[key].append( items )
+
+  with open( path, 'w' ) as fy_w:
+    yaml.dump( yaml_conf, fy_w, default_flow_style=False )
+
+
+def deleteYml( path, key, items ):
+  if os.path.exists( path ):
+    with open( path ) as fy:
+      yaml_conf = yaml.safe_load(fy)
+  else:
+    yaml_conf = {}
+
+  for item in items:
+    if item in yaml_conf[key]:
+      yaml_conf[key].remove( item )
+    else:
+      print('item not in key items')
+
+  with open( path, 'w' ) as fy_w:
+    yaml.dump( yaml_conf, fy_w, default_flow_style=False )
 
 
 class MyDropbox():

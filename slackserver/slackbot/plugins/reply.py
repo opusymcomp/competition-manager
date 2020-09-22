@@ -27,7 +27,8 @@ test_flag = False
 announce_flag = False
 db_access_token = ''
 db_boot_dir = ''
-dbx_flag = True
+dbx_flag = False
+tournament_conf_path = './tournament.yml'
 # with open( "./conf.yml" ) as fy_r:
 #     conf = yaml.safe_load( fy_r )
 # organize_ch_n=conf["channel"]
@@ -70,20 +71,31 @@ def listen_func(message):
 @listen_to(r'^group\w+')
 @in_channel(organize_ch_n)
 def listen_func(message):
-    setting = message.body['text']
-    group = ''.join(setting[:6])
-    print('setting:', setting)
-    print('group:', group)
-    gtxt = tl.saveGroup(setting)
-    msg = 'Created round-robin ' + group + '.\n'
-    roundrobin = tl.getRoundrobin(setting, gtxt)
-    print('roundrobin:', roundrobin)
-    msg = msg + 'You choose [' + str(
-        roundrobin) + '] for the target teams.\n Confirmation. \n -Group : [' + group + '] \n -Target teams : [' + str(
-        roundrobin) + ']\n'
-    message.reply(msg)
-    msg = 'Enter "start group*" to run the round-robin'
-    message.reply(msg)
+    setting = message.body['text'].split()
+    text_flag = True
+    if len( setting ) != 2:
+        text_flag = False
+    elif setting[0] in "group":
+        text_flag = False
+
+    if text_flag == True:
+        group = setting[0] #''.join(setting[:6])
+        print('setting:', setting)
+        print('group:', group)
+        gtxt = tl.saveGroup(setting)
+        groups = setting[1].split(',')
+
+        tl.writeYml( tournament_conf_path, group, groups )
+
+        msg = 'Created round-robin ' + group + '.\n'
+        roundrobin = groups #tl.getRoundrobin(setting, gtxt)
+        print('roundrobin:', roundrobin)
+        msg = msg + 'You choose ' + str(
+            roundrobin) + ' for the target teams.\n Confirmation. \n -Group : [' + group + '] \n -Target teams : ' + str(
+                roundrobin) + '\n'
+        message.reply(msg)
+        msg = 'Enter "start group*" to run the round-robin'
+        message.reply(msg)
 
 
 @listen_to(r'^start \w+')
@@ -330,8 +342,55 @@ def listen_func(message):
     #             + match_list[ 'match_' + str(match_n) ]['team_r']
     #        )
 
+@listen_to(r'^check_matches \w+')
+@in_channel(organize_ch_n)
+def listen_func(message):
 
-#    print(match_n)
+    startgroup = message.body['text']
+    group = startgroup.split()[1]
+    roundrobin = tl.getTeamsInGroup(group)
+
+    with open(config_yml) as fy_r:
+        conf = yaml.safe_load(fy_r)
+
+    conf['teams'] = roundrobin
+
+    with open(config_yml, 'w') as fy_w:
+        yaml.dump(conf, fy_w, default_flow_style=False)
+
+    group_match_sim = subprocess.run([tournament_path + 'start.sh', '--config=' + config + ' --simulate'],
+                                     encoding='utf-8', stdout=subprocess.PIPE)
+    matches = group_match_sim.stdout.split("\n")
+    msg = ''
+    for i in range(len(matches)-2):
+        if i == 0:
+            continue
+        elif i > 1:
+            mod_row = matches[i].split()
+            mod_row[1] = mod_row[1].strip(conf['teams_dir'])
+            mod_row[3] = mod_row[3].strip(conf['teams_dir'])
+            matches[i] = " ".join(mod_row)
+        msg += matches[i] + '\n'
+    message.send( msg )
+
+# @listen_to(r'^syn_teams \w+')
+# @in_channel(organize_ch_n)
+# def listen_func(message):
+
+#     startgroup = message.body['text']
+#     groups = startgroup.split()[1].split(',')
+#     for group in groups:
+#         teams = tl.getTeamsInGroup( group )
+
+
+@listen_to(r'^add_comp \w+')
+@in_channel(organize_ch_n)
+def listen_func(message):
+    text_comp = message.body['text']
+    computers = text_comp.split()[1].split(',')
+    for computer in computers:
+        tl.addYml( path, 'computers', computer )
+
 
 
 # @listen_to(r'^country \w+')
