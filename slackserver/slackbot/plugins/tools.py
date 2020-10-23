@@ -9,15 +9,27 @@ import yaml
 from slacker import Slacker
 slacker = Slacker(slackbot_settings.API_TOKEN)
 
+with open( "./conf.yml" ) as fy_r:
+    conf = yaml.safe_load( fy_r )
+home = os.path.expanduser("~") + "/"
+loganalyzer_path = home + conf['loganalyzer_path']
+tournament_path = home + conf['tournament_path']
+sample_config_yml = tournament_path + conf['sample_conf_path']
+
+comp_flag_dict = {}
+
+
 def resCmd(cmd):
   return subprocess.Popen(
       cmd, stdout=subprocess.PIPE,
       shell=True).communicate()[0]
 
+
 def getOpponent():
     cmd = ("cat ../../test/qualification.txt")
     settinglist = resCmd(cmd).decode('utf-8').strip().split()
     return settinglist
+
 
 def getRoundrobin(setting ,gtxt):
     data = ''.join(setting[7:])
@@ -26,6 +38,7 @@ def getRoundrobin(setting ,gtxt):
     f.write(data)
     f.close()
     return data
+
 
 def getStartgroup(startgroup):
     startgroup =  ''.join(startgroup[6:])
@@ -37,12 +50,14 @@ def getStartgroup(startgroup):
     f.close()
     return datalist
 
+
 def getTeamsInGroup(group):
   path = ('../../tournament/config/group/' + group + '.txt')
   f = open(path, mode='r+')
   datalist = [s.split(',') for s in f.readlines()][0]
   f.close()
   return datalist
+
 
 def saveGroup(setting):
     currentpath = os.getcwd()
@@ -58,14 +73,17 @@ def saveGroup(setting):
     os.chdir(currentpath)
     return gtxt
 
+
 def getChannelID( message, name ):
   for id_num, info in message.channel._client.channels.items():
     if name == info['name']:
       return id_num
 
+
 def getChannelMembers( message, channel_name ):
   channel_id = getChannelID(message, channel_name)
   return message.channel._client.channels[channel_id]['members']
+
 
 def upload_file( channel_id, file_path, comment ):
   file_name = os.path.basename(file_path)
@@ -83,19 +101,102 @@ def upload_file( channel_id, file_path, comment ):
   requests.post( url=upload_url, params=param, files=files)
 
 
-def writeYml( path, key, items ):
+def loadGroupYml( tournament_conf_path, group, group_conf_path ):
+  if os.path.exists( group_conf_path ):
+    with open( group_conf_path ) as fy:
+      yaml_conf = yaml.safe_load(fy)
+  else:
+    print('not exist group conf file')
+
+  if os.path.exists( tournament_conf_path ):
+    with open( tournament_conf_path ) as fy:
+      tournament_conf = yaml.safe_load(fy)
+  else:
+    print('not exist tournament conf file')
+
+  if group in yaml_conf.keys():
+    group_conf = yaml_conf[group]
+  else:
+    print('not exist ' + group + 'conf')
+
+  for key in group_conf.keys():
+    tournament_conf[key] = group_conf[key]
+
+  with open( tournament_conf_path, 'w' ) as fy_w:
+    yaml.dump( tournament_conf, fy_w, default_flow_style=False )
+
+
+def storeGroupYml( group_conf_path, group, key, values ):
+  if os.path.exists( group_conf_path ):
+    with open( group_conf_path ) as fy:
+      yaml_conf = yaml.safe_load(fy)
+  else:
+    print('not exist file')
+    return False
+
+  if group not in yaml_conf.keys():
+    yaml_conf[group] = {}
+
+  # if list != type(values):
+  #   values = values.split()
+
+  if key in getTourYmlKeys():
+    if len(values) == 1:
+      yaml_conf[group][key] = values[0]
+    else:
+      yaml_conf[group][key] = values
+  else:
+    print(key + ' does not exist in tournament conf')
+    return False
+
+  with open( group_conf_path, 'w' ) as fy_w:
+    yaml.dump( yaml_conf, fy_w, default_flow_style=False )
+  return True
+
+
+def listGroupYml( path, group, key ):
+  if os.path.exists( path ):
+    with open( path ) as fy:
+      yaml_conf = yaml.safe_load(fy)
+  else:
+    print('not exist file')
+    return False
+
+  if group not in yaml_conf.keys():
+    print('not in ' + group + ' config')
+    return False
+  elif key in yaml_conf[group].keys():
+    return yaml_conf[group][key]
+  else:
+    print('not in')
+    return False
+
+
+def getTourYmlKeys( tournament_conf_path=sample_config_yml ):
+  if os.path.exists( tournament_conf_path ):
+    with open( tournament_conf_path ) as fy:
+      tour_conf = yaml.safe_load(fy)
+  else:
+    print('not exist ' + tournament_conf_path )
+    return []
+
+  return tour_conf.keys()
+
+
+def writeYml( path, key, values ):
   if os.path.exists( path ):
     with open( path ) as fy:
       yaml_conf = yaml.safe_load(fy)
   else:
     yaml_conf = {}
 
-  yaml_conf[key] = items
+  yaml_conf[key] = values
 
   with open( path, 'w' ) as fy_w:
     yaml.dump( yaml_conf, fy_w, default_flow_style=False )
 
-def addYml( path, key, items ):
+
+def addYml( path, key, values ):
   if os.path.exists( path ):
     with open( path ) as fy:
       yaml_conf = yaml.safe_load(fy)
@@ -103,27 +204,55 @@ def addYml( path, key, items ):
     yaml_conf = {}
     print('not exist yaml file')
 
-  yaml_conf[key].append( items )
+  if list != type(values):
+    values = values.split()
+
+  if key in yaml_conf.keys():
+    for value in values:
+      if value not in yaml_conf[key]:
+        if list != type(yaml_conf[key]):
+          yaml_conf[key] = yaml_conf[key].split()
+        yaml_conf[key].append( value )
+  else:
+    yaml_conf[key] = values
 
   with open( path, 'w' ) as fy_w:
     yaml.dump( yaml_conf, fy_w, default_flow_style=False )
 
 
-def deleteYml( path, key, items ):
+def deleteYml( path, key, values ):
   if os.path.exists( path ):
     with open( path ) as fy:
       yaml_conf = yaml.safe_load(fy)
   else:
     yaml_conf = {}
 
-  for item in items:
-    if item in yaml_conf[key]:
-      yaml_conf[key].remove( item )
+  if list != type(values):
+    values = values.split()
+
+  for value in values:
+    if value in yaml_conf[key]:
+      if list != type( yaml_conf[key] ):
+        yaml_conf[key] = yaml_conf[key].split()
+      yaml_conf[key].remove( value )
     else:
-      print('item not in key items')
+      print( value + ' not in ' + key + ' values')
 
   with open( path, 'w' ) as fy_w:
     yaml.dump( yaml_conf, fy_w, default_flow_style=False )
+
+
+def listYml( path, key ):
+  if os.path.exists( path ):
+    with open( path ) as fy:
+      yaml_conf = yaml.safe_load(fy)
+  else:
+    print('not exist file')
+
+  if key in yaml_conf.keys():
+    return yaml_conf[key]
+  else:
+    return 'not in'
 
 
 class MyDropbox():
