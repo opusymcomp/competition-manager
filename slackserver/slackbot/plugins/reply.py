@@ -13,31 +13,27 @@ from .utils import in_channel
 
 from time import sleep
 
+
+with open( "./conf.yml" ) as fy_r:
+    conf = yaml.safe_load( fy_r )
 home = os.path.expanduser("~") + "/"
-loganalyzer_path = home + 'competition-manager/loganalyzer3/'
-tournament_path = home + 'competition-manager/tournament/'
-config = 'config/sample/sample.yml'
+loganalyzer_path = home + conf['loganalyzer_path']
+tournament_path = home + conf['tournament_path']
+competition_conf_path = conf['competition_conf_path']
+organize_ch_n = conf["channel"]
+organizer_id = conf["id"]
+announce_ch_n = conf['an_channel']
+config = conf['conf_path']
 config_yml = tournament_path + config
-organize_ch_n = "organizer"
+db_access_token = conf['dbx_token']
+db_boot_dir = conf['dbx_boot_dir']
+competition_name = conf['competition_name']
+
 bin_flag = False
-organizer_id = "ORGANIZER_ID"
-game_flag = False
-announce_ch_n = "general"
+dbx_flag = False
 test_flag = False
 announce_flag = False
-db_access_token = ''
-db_boot_dir = ''
-dbx_flag = False
-tournament_conf_path = './tournament.yml'
-# with open( "./conf.yml" ) as fy_r:
-#     conf = yaml.safe_load( fy_r )
-# organize_ch_n=conf["channel"]
-# organizer_id=conf["id"]
-# announce_ch_n=conf['an_channel']
-# config=conf['conf_path']
-# config_yml = tournament_path + config
-# db_access_token=conf['dbx_token']
-# db_boot_dir=conf['dbx_boot_dir']
+game_flag = False
 
 if dbx_flag:
     db = tl.MyDropbox(db_access_token, db_boot_dir)
@@ -68,113 +64,180 @@ def listen_func(message):
     message.reply(msg)
 
 
-@listen_to(r'^group\w+')
+@listen_to(r'^group\w*')
 @in_channel(organize_ch_n)
 def listen_func(message):
     setting = message.body['text'].split()
-    text_flag = True
-    if len( setting ) != 2:
-        text_flag = False
-    elif setting[0] in "group":
-        text_flag = False
+    ans_flag = 'help'
+    if len( setting ) == 1:
+        if setting[0] == 'group':
+            ans_flag = 'help'
+        else:
+            ans_flag = 'status'
+    elif len( setting ) == 2:
+        ans_flag = 'help'
+    elif len( setting ) == 3:
+        ans_flag = 'set'
 
-    if text_flag == True:
-        group = setting[0] #''.join(setting[:6])
-        print('setting:', setting)
-        print('group:', group)
-        gtxt = tl.saveGroup(setting)
-        groups = setting[1].split(',')
-
-        tl.writeYml( tournament_conf_path, group, groups )
-
-        msg = 'Created round-robin ' + group + '.\n'
-        roundrobin = groups #tl.getRoundrobin(setting, gtxt)
-        print('roundrobin:', roundrobin)
-        msg = msg + 'You choose ' + str(
-            roundrobin) + ' for the target teams.\n Confirmation. \n -Group : [' + group + '] \n -Target teams : ' + str(
-                roundrobin) + '\n'
+    if ans_flag == 'help':
+        msg = 'group* [key] [values] : setting [key] [values] in group*\n group* : showing group* setting'
         message.reply(msg)
-        msg = 'Enter "start group*" to run the round-robin'
-        message.reply(msg)
+    elif ans_flag == 'status':
+        if len( setting ) == 1:
+            group_keys = tl.listYml( competition_conf_path, setting[0] )
+            for g_key in group_keys:
+                key_values = tl.listGroupYml( competition_conf_path, setting[0], g_key )
+                if type(key_values) != list:
+                    key_values = key_values + '\n'
+                else:
+                    key_values = '\n-'.join( key_values )
+                msg = '\n' + g_key + '\n-' + key_values
+                message.send( msg )
+        else:
+            msg = tl.listGroupYml( competition_conf_path, setting[0], setting[1] )
+        if msg == False:
+            message.reply('error : show commandline')
+    elif ans_flag == 'set':
+        setting[2] = setting[2].split(',')
+        flag = False
+        if setting[1] in tl.getTourYmlKeys( config_yml ):
+            flag = True
+        if flag:
+            tl.storeGroupYml( competition_conf_path, setting[0], setting[1], setting[2] )
+            message.reply('setting config completed')
+        else:
+            message.reply(setting[1] + ' is not in config keys')
+
+    # text_flag = True
+    # if len( setting ) != 2:
+    #     text_flag = False
+    # elif setting[0] in "group":
+    #     text_flag = False
+
+    # if text_flag == True:
+    #     group = setting[0] #''.join(setting[:6])
+    #     print('setting:', setting)
+    #     print('group:', group)
+    #     gtxt = tl.saveGroup(setting)
+    #     groups = setting[1].split(',')
+
+    #     tl.writeYml( competition_conf_path, group, groups )
+
+    #     msg = 'Created round-robin ' + group + '.\n'
+    #     roundrobin = groups #tl.getRoundrobin(setting, gtxt)
+    #     print('roundrobin:', roundrobin)
+    #     msg = msg + 'You choose ' + str(
+    #         roundrobin) + ' for the target teams.\n Confirmation. \n -Group : [' + group + '] \n -Target teams : ' + str(
+    #             roundrobin) + '\n'
+    #     message.reply(msg)
+    #     msg = 'Enter "start group*" to run the round-robin'
+    #     message.reply(msg)
 
 
 @listen_to(r'^start \w+')
 @in_channel(organize_ch_n)
 def cool_func(message):
     global game_flag
-    if not game_flag:
+    if not game_flag or game_flag:
         dt_start = datetime.datetime.now().strftime('%Y%m%d%H%M')
-        startgroup = message.body['text']
-        group = ''.join(startgroup[6:])
-        roundrobin = tl.getStartgroup(startgroup)
-        msg = 'The ' + group + ' starts soon \n Start time : ' + dt_start + '\n I will notify you when the game ' \
-                                                                            'finished.\n '
-        message.reply(msg)
-        message.react('+1')
-        ori_channel = message.body['channel']
-        message.body['channel'] = tl.getChannelID(message, announce_ch_n)
-        message.send(msg)
-        message.body['channel'] = ori_channel
 
-        game_flag = True
-        with open(config_yml) as fy_r:
-            conf = yaml.safe_load(fy_r)
+        # startgroup = message.body['text']
+        # group = ''.join(startgroup[6:])
+        txt_flag = ''
+        txt_list = message.body['text'].split()
+        group = txt_list[1]
+        if len( txt_list ) == 2 and 'group' in group:
+            if os.path.exists( competition_conf_path ):
+                with open(competition_conf_path) as fy_c:
+                    groups_yml = yaml.safe_load(fy_c)
+                if group in groups_yml.keys():
+                    group_yml = groups_yml[ group ]
+                else:
+                    txt_flag = 'not in g_conf'
+            else:
+                txt_flag = 'not exist'
+        else:
+            txt_flag = 'help'
 
-        if conf['mode'] == 'single_match':
-            for num_l in range(len(roundrobin) - 1):
-                for num_r in range(num_l + 1, len(roundrobin)):
-                    dt_now_M = datetime.datetime.now().strftime('%Y%m%d%H%M')
+        if txt_flag == 'help':
+            message.send('start group* : Start round-robon. (ex. start groupA)')
+        elif txt_flag == 'not exist':
+            message.send('competition conf does not exist')
+        elif txt_flag == 'not in g_conf':
+            message.send('group conf is not in competition conf')
+        elif txt_flag == '':
+            #roundrobin = tl.getStartgroup(startgroup)
+            msg = 'The ' + group + ' starts soon \n Start time : ' + dt_start + '\n I will notify you when the game ' \
+                  'finished.\n '
+            message.reply(msg)
+            message.react('+1')
+            ori_channel = message.body['channel']
+            message.body['channel'] = tl.getChannelID(message, announce_ch_n)
+            message.send(msg)
+            message.body['channel'] = ori_channel
 
-                    matchteam = []
-                    matchteam.append(roundrobin[num_l])
-                    matchteam.append(roundrobin[num_r])
+            game_flag = True
+            with open(config_yml) as fy_r:
+                conf = yaml.safe_load(fy_r)
 
-                    # with open( config_yml ) as fy_r:
-                    #     conf = yaml.safe_load( fy_r )
-                    conf['teams'] = matchteam
-                    log_d = conf['log_dir'].split('/')
+            for conf_key in group_yml.keys():
+                conf[conf_key] = group_yml[conf_key]
 
-                    # log/a/などの様に前後に空の要素が出来るときの処理
-                    for i in range(log_d.count("")):
-                        log_d.remove("")
+        # if conf['mode'] == 'single_match' and game_flag:
+        #     for num_l in range(len(roundrobin) - 1):
+        #         for num_r in range(num_l + 1, len(roundrobin)):
+        #             dt_now_M = datetime.datetime.now().strftime('%Y%m%d%H%M')
 
-                    conf['log_dir'] = ""
-                    find_g = [s for s in log_d if "group" in s]
-                    if len(find_g) > 0:
-                        for n in range(len(log_d)):
-                            if "group" in log_d[n]:
-                                break
-                            conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
-                    else:
-                        for n in range(len(log_d)):
-                            conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
-                    conf['log_dir'] = conf['log_dir'] + group + '/' + dt_now_M
+        #             matchteam = []
+        #             matchteam.append(roundrobin[num_l])
+        #             matchteam.append(roundrobin[num_r])
 
-                    with open(config_yml, 'w') as fy_w:
-                        yaml.dump(conf, fy_w, default_flow_style=False)
-                    msg = 'match start' + str(matchteam)
-                    message.send(msg)
+        #             # with open( config_yml ) as fy_r:
+        #             #     conf = yaml.safe_load( fy_r )
+        #             conf['teams'] = matchteam
+        #             log_d = conf['log_dir'].split('/')
 
-                    subprocess.run([tournament_path + 'start.sh', '--config=' + config])
+        #             # log/a/などの様に前後に空の要素が出来るときの処理
+        #             for i in range(log_d.count("")):
+        #                 log_d.remove("")
 
-                    # arg=[]
-                    # arg.append(tournament_path)
-                    # arg.append(conf['log_dir'])
-                    # arg.extend(roundrobin)
-                    # arg = " ".join(arg)
-                    # result = subprocess.run( ['../gametools/results/result.sh', str(arg)] )
+        #             conf['log_dir'] = ""
+        #             find_g = [s for s in log_d if "group" in s]
+        #             if len(find_g) > 0:
+        #                 for n in range(len(log_d)):
+        #                     if "group" in log_d[n]:
+        #                         break
+        #                     conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
+        #             else:
+        #                 for n in range(len(log_d)):
+        #                     conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
+        #             conf['log_dir'] = conf['log_dir'] + group + '/' + dt_now_M
 
-                    rank = subprocess.run(['../gametools/results/rank.sh', str(group)], encoding='utf-8',
-                                          stdout=subprocess.PIPE)
-                    print(rank.stdout)
-                    # standing.main(group)
+        #             with open(config_yml, 'w') as fy_w:
+        #                 yaml.dump(conf, fy_w, default_flow_style=False)
+        #             msg = 'match start' + str(matchteam)
+        #             message.send(msg)
 
-                    msg = 'match finish' + str(matchteam)
-                    message.send(msg)
+        #             subprocess.run([tournament_path + 'start.sh', '--config=' + config])
 
-        elif conf['mode'] == 'group':
+        #             # arg=[]
+        #             # arg.append(tournament_path)
+        #             # arg.append(conf['log_dir'])
+        #             # arg.extend(roundrobin)
+        #             # arg = " ".join(arg)
+        #             # result = subprocess.run( ['../gametools/results/result.sh', str(arg)] )
+
+        #             rank = subprocess.run(['../gametools/results/rank.sh', str(group)], encoding='utf-8',
+        #                                   stdout=subprocess.PIPE)
+        #             print(rank.stdout)
+        #             # standing.main(group)
+
+        #             msg = 'match finish' + str(matchteam)
+        #             message.send(msg)
+
+        if conf['mode'] == 'group' and game_flag:
             dt_now_M = datetime.datetime.now().strftime('%Y%m%d%H%M')
-            conf['teams'] = roundrobin
+            #conf['teams'] = roundrobin
 
             log_d = conf['log_dir'].split('/')
             # log/a/などの様に前後に空の要素が出来るときの処理
@@ -388,10 +451,35 @@ def listen_func(message):
 def listen_func(message):
     text_comp = message.body['text']
     computers = text_comp.split()[1].split(',')
-    for computer in computers:
-        tl.addYml( path, 'computers', computer )
+    tl.addYml( competition_conf_path, 'computers', computers )
 
+@listen_to(r'^delete_comp \w+')
+@in_channel(organize_ch_n)
+def listen_func(message):
+    text_comp = message.body['text']
+    computers = text_comp.split()[1].split(',')
+    tl.deleteYml( competition_conf_path, 'computers', computers )
 
+@listen_to(r'^computers$')
+@in_channel(organize_ch_n)
+def listen_func(message):
+    comp_list = tl.listYml( competition_conf_path, 'computers' )
+    msg = '\n'.join( comp_list )
+    message.send( msg )
+
+@listen_to(r'^add_server \w+')
+@in_channel(organize_ch_n)
+def listen_func(message):
+    text_comp = message.body['text']
+    computers = text_comp.split()[1].split(',')
+    tl.addYml( competition_conf_path, 'server', computers )
+
+# @listen_to(r'^create_ \w+')
+# @in_channel(organize_ch_n)
+# def listen_func(message):
+#     text_comp = message.body['text']
+#     computers = text_comp.split()[1].split(',')
+#     tl.addYml( competition_conf_path, 'server', computers )
 
 # @listen_to(r'^country \w+')
 # @in_channel(organize_ch_n)
