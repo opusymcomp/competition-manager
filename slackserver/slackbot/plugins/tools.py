@@ -100,6 +100,10 @@ def upload_file( channel_id, file_path, comment ):
   upload_url = "https://slack.com/api/files.upload"
   requests.post( url=upload_url, params=param, files=files)
 
+def upload_file_s( file_path, channel_id ):
+  if os.path.exists( file_path ):
+    slacker.files.upload( file_=file_path, channels=channel_id )
+
 
 def loadGroupYml( tournament_conf_path, group, group_conf_path ):
   if os.path.exists( group_conf_path ):
