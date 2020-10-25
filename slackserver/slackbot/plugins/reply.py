@@ -88,7 +88,7 @@ def listen_func(message):
             for g_key in group_keys:
                 key_values = tl.listGroupYml( competition_conf_path, setting[0], g_key )
                 if not key_values:
-                    msg == False
+                    msg = False
                 elif type(key_values) != list:
                     key_values = key_values + '\n'
                     msg = '\n' + g_key + '\n-' + key_values
@@ -414,32 +414,63 @@ def listen_func(message):
 @in_channel(organize_ch_n)
 def listen_func(message):
 
-    startgroup = message.body['text']
-    group = startgroup.split()[1]
-    roundrobin = tl.getTeamsInGroup(group)
+    txt_flag = ''
+    txt_list = message.body['text'].split()
+    group = txt_list[1]
+    if len( txt_list ) == 2 and 'group' in group:
+        if os.path.exists( competition_conf_path ):
+            with open(competition_conf_path) as fy_c:
+                groups_yml = yaml.safe_load(fy_c)
+            if group in groups_yml.keys():
+                group_yml = groups_yml[ group ]
+            else:
+                txt_flag = 'not in g_conf'
+        else:
+            txt_flag = 'not exist'
+    else:
+        txt_flag = 'help'
 
-    with open(config_yml) as fy_r:
-        conf = yaml.safe_load(fy_r)
+    if txt_flag == '':
+        with open(config_yml) as fy_r:
+            conf = yaml.safe_load(fy_r)
+        for conf_key in group_yml.keys():
+            conf[conf_key] = group_yml[conf_key]
+        dt_now_M = datetime.datetime.now().strftime('%Y%m%d%H%M')
 
-    conf['teams'] = roundrobin
+        log_d = conf['log_dir'].split('/')
+        # log/a/などの様に前後に空の要素が出来るときの処理
+        for i in range(log_d.count("")):
+            log_d.remove("")
 
-    with open(config_yml, 'w') as fy_w:
-        yaml.dump(conf, fy_w, default_flow_style=False)
+        conf['log_dir'] = ""
+        find_g = [s for s in log_d if "group" in s]
+        if len(find_g) > 0:
+            for n in range(len(log_d)):
+                if "group" in log_d[n]:
+                    break
+                conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
+        else:
+            for n in range(len(log_d)):
+                conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
+        conf['log_dir'] = conf['log_dir'] + group + '/' + dt_now_M
 
-    group_match_sim = subprocess.run([tournament_path + 'start.sh', '--config=' + config + ' --simulate'],
-                                     encoding='utf-8', stdout=subprocess.PIPE)
-    matches = group_match_sim.stdout.split("\n")
-    msg = ''
-    for i in range(len(matches)-2):
-        if i == 0:
-            continue
-        elif i > 1:
-            mod_row = matches[i].split()
-            mod_row[1] = mod_row[1].strip(conf['teams_dir'])
-            mod_row[3] = mod_row[3].strip(conf['teams_dir'])
-            matches[i] = " ".join(mod_row)
-        msg += matches[i] + '\n'
-    message.send( msg )
+        with open(config_yml, 'w') as fy_w:
+            yaml.dump(conf, fy_w, default_flow_style=False)
+
+        group_match_sim = subprocess.run([tournament_path + 'start.sh', '--config=' + config + ' --simulate'],
+                                         encoding='utf-8', stdout=subprocess.PIPE)
+        matches = group_match_sim.stdout.split("\n")
+        msg = ''
+        for i in range(len(matches)-2):
+            if i == 0:
+                continue
+            elif i > 1:
+                mod_row = matches[i].split()
+                mod_row[1] = mod_row[1].strip(conf['teams_dir'])
+                mod_row[3] = mod_row[3].strip(conf['teams_dir'])
+                matches[i] = " ".join(mod_row)
+            msg += matches[i] + '\n'
+        message.send( msg )
 
 # @listen_to(r'^syn_teams \w+')
 # @in_channel(organize_ch_n)
