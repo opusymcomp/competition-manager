@@ -87,12 +87,16 @@ def listen_func(message):
             group_keys = tl.listYml( competition_conf_path, setting[0] )
             for g_key in group_keys:
                 key_values = tl.listGroupYml( competition_conf_path, setting[0], g_key )
-                if type(key_values) != list:
+                if not key_values:
+                    msg == False
+                elif type(key_values) != list:
                     key_values = key_values + '\n'
+                    msg = '\n' + g_key + '\n-' + key_values
+                    message.send( msg )
                 else:
                     key_values = '\n-'.join( key_values )
-                msg = '\n' + g_key + '\n-' + key_values
-                message.send( msg )
+                    msg = '\n' + g_key + '\n-' + key_values
+                    message.send( msg )
         else:
             msg = tl.listGroupYml( competition_conf_path, setting[0], setting[1] )
         if msg == False:

@@ -136,7 +136,7 @@ def storeGroupYml( group_conf_path, group, key, values ):
       yaml_conf = yaml.safe_load(fy)
   else:
     print('not exist file')
-    return False
+    yaml_conf = {}
 
   if group not in yaml_conf.keys():
     yaml_conf[group] = {}
