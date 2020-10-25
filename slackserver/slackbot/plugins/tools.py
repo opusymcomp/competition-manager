@@ -247,6 +247,7 @@ def deleteYml( path, key, values ):
 
 
 def listYml( path, key ):
+  flag = false
   if os.path.exists( path ):
     with open( path ) as fy:
       yaml_conf = yaml.safe_load(fy)
