@@ -283,18 +283,44 @@ class MyDropbox():
     for entry in self.dbx.files_list_folder('').entries:
       print(entry.name)
 
-  def createFolder(self):
-    dir_flag = False
-    dir_path = self.DB_ROOT_DIR
-    pre_dir_path = '/'.join(dir_path.split('/')[0:-1])
-    print(pre_dir_path)
-    for entry in self.dbx.files_list_folder(pre_dir_path, recursive=True).entries:
-      if entry.name == dir_path.split('/')[-1]:
-        dir_flag = True
-        print('exist dir path')
-    if not dir_flag:
-      self.dbx.files_create_folder_v2(dir_path)
-      print('created directory')
+  def createFolder(self, path):
+    dir_path = path #self.DB_ROOT_DIR
+    #print(dir_path)
+    depth_path = ''
+    # for entry in self.dbx.files_list_folder(depth_path, recursive=True).entries:
+    #   #print(entry)
+    #   if entry.name == dir_path.split('/')[-1]:
+    #     dir_flag = True
+    #     print('exist dir path')
+    # if not dir_flag:
+    #   self.dbx.files_create_folder_v2(dir_path)
+    #   print('created directory')
+    for depth in dir_path.split('/')[1:]:
+      dir_flag = False
+      print('pre_entry: ' + depth_path)
+      depth_entries = self.dbx.files_list_folder(depth_path, recursive=True).entries
+      depth_path = depth_path + '/' + depth
+      for entry in depth_entries:
+        #print(entry)
+        print('entry: ' + depth_path)
+        if entry.name == depth_path.split('/')[-1]:
+          dir_flag = True
+          print('exist dir path')
+          break
+      if not dir_flag:
+        self.dbx.files_create_folder_v2(depth_path)
+        print('created directory')
+    print(dir_path)
+
+    # pre_dir_path = '/'.join(dir_path.split('/')[0:-1])
+    # print(pre_dir_path)
+    # for entry in self.dbx.files_list_folder(pre_dir_path, recursive=True).entries:
+    #   if entry.name == dir_path.split('/')[-1]:
+    #     dir_flag = True
+    #     print('exist dir path')
+    # if not dir_flag:
+    #   self.dbx.files_create_folder_v2(dir_path)
+    #   print('created directory')
 
   def uploadFiles(self, contents, file_name):
     self.dbx.files_upload( contents, self.DB_ROOT_DIR + '/' + file_name, autorename=True )

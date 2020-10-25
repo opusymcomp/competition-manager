@@ -37,7 +37,7 @@ game_flag = False
 
 if dbx_flag:
     db = tl.MyDropbox(db_access_token, db_boot_dir)
-    db.createFolder()
+    db.createFolder(db_boot_dir)
 
 if os.environ.get("PATH"):
     os.environ["PATH"] = loganalyzer_path + ":" + os.environ["PATH"]
@@ -304,9 +304,10 @@ def cool_func(message):
 
             if dbx_flag:
                 match_dir = tournament_path + conf['log_dir'] + '/match_' + str(match_n)
-                db_match_dir = db_boot_dir + '/match_' + str(match_n)
+                db_match_dir = db_boot_dir + '/' + group + '/match_' + str(match_n)
+                print(db_match_dir)
                 db = tl.MyDropbox(db_access_token, db_match_dir)
-                db.createFolder()
+                db.createFolder(db_match_dir)
                 for match_file in os.listdir(match_dir):
                     with open( match_dir + '/' + match_file, 'rb') as m_f:
                         f_body = m_f.read()
@@ -366,10 +367,13 @@ def listen_func(message):
                 result_line_dict = { header[i].strip():elm[i].strip() for i in range( len(header) ) }
 
                 if dbx_flag:
+                    for dir_n in conf['log_dir'].split('/'):
+                        if 'group' in dir_n:
+                            group = dir_n
                     match_dir = tournament_path + conf['log_dir'] + '/match_' + str(pre_match)
-                    db_match_dir = db_boot_dir + '/match_' + str(pre_match)
+                    db_match_dir = db_boot_dir + '/' + group + '/match_' + str(pre_match)
                     db = tl.MyDropbox(db_access_token, db_match_dir)
-                    db.createFolder()
+                    db.createFolder( db_match_dir )
                     for match_file in os.listdir(match_dir):
                         with open( match_dir + '/' + match_file, 'rb') as m_f:
                             f_body = m_f.read()
@@ -459,6 +463,7 @@ def listen_func(message):
 
         group_match_sim = subprocess.run([tournament_path + 'start.sh', '--config=' + config + ' --simulate'],
                                          encoding='utf-8', stdout=subprocess.PIPE)
+        print(group_match_sim.stdout)
         matches = group_match_sim.stdout.split("\n")
         msg = ''
         for i in range(len(matches)-2):
@@ -471,6 +476,10 @@ def listen_func(message):
                 matches[i] = " ".join(mod_row)
             msg += matches[i] + '\n'
         message.send( msg )
+        ori_channel = message.body['channel']
+        message.body['channel'] = tl.getChannelID(message, announce_ch_n)
+        message.send(msg)
+        message.body['channel'] = ori_channel
 
 # @listen_to(r'^syn_teams \w+')
 # @in_channel(organize_ch_n)
