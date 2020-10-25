@@ -247,11 +247,11 @@ def deleteYml( path, key, values ):
 
 
 def listYml( path, key ):
-  flag = false
+  flag = False
   if os.path.exists( path ):
     with open( path ) as fy:
       yaml_conf = yaml.safe_load(fy)
-    flag = true
+    flag = True
   else:
     print('not exist file')
 
