@@ -250,10 +250,11 @@ def listYml( path, key ):
   if os.path.exists( path ):
     with open( path ) as fy:
       yaml_conf = yaml.safe_load(fy)
+    flag = true
   else:
     print('not exist file')
 
-  if key in yaml_conf.keys():
+  if flag and key in yaml_conf.keys():
     return yaml_conf[key]
   else:
     return 'not in'
