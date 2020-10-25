@@ -25,6 +25,7 @@ organizer_id = conf["id"]
 announce_ch_n = conf['an_channel']
 config = conf['conf_path']
 config_yml = tournament_path + config
+test_config_yml = tournament_path + conf['test_conf_path']
 db_access_token = conf['dbx_token']
 db_boot_dir = conf['dbx_boot_dir']
 competition_name = conf['competition_name']
@@ -256,6 +257,7 @@ def cool_func(message):
                     conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
             conf['log_dir'] = conf['log_dir'] + group + '/' + dt_now_M
 
+            conf['teams_dir'] = home
             with open(config_yml, 'w') as fy_w:
                 yaml.dump(conf, fy_w, default_flow_style=False)
 
@@ -604,10 +606,10 @@ def file_download(message):
         teamname = ''.join(teamname[4:])
         print("test teamname:", teamname)
         teamdir = home + teamname
-        filename = message._body['files'][0]['name']
         file_types = ['gzip', 'binary']
         download_file = dl.DownloadFile(file_types, home)
         if 'files' in message._body.keys():
+            filename = message._body['files'][0]['name']
             result = download_file.exe_download(message._body['files'][0])
         else:
             result = 'empty'
@@ -616,20 +618,20 @@ def file_download(message):
             msg = 'binary upload complete'
             ori_channel = message.body['channel']
             message.body['channel'] = tl.getChannelID(message, organize_ch_n)
-            message.send(msg)
+            message.send(teamname + msg)
             message.body['channel'] = ori_channel
             message.send(msg)
         elif result == 'file type is not applicable.':
-            message.send('ファイルのタイプがアップロード対象外です')
+            message.send('file type is not applicable.\n applicable file type is tar.gz')
             err_flag = True
         elif result == 'empty':
-            message.send('ファイルが添付されていません')
+            message.send('attached file is not exist.')
             err_flag = True
         elif result == 'type null':
             message.send('uploading binary may be too fast.\n please wait approx. 10 seconds after uploading binary is completed')
             err_flag = True
         else:
-            message.send('ファイルのアップロードに失敗しました')
+            message.send('uploading file is failed.')
             err_flag = True
 
         sleep(5)
@@ -670,27 +672,40 @@ def file_download(message):
             )
 
         if not err_flag and not game_flag:
-            message.send('binary test start (please wait approx. 1 min.)')
+            message.send('binary test start (please wait approx. 2 min.)')
             game_flag = True
-            test_result = subprocess.run(['../../test/autotest.sh', teamname], encoding='utf-8', stdout=subprocess.PIPE)
-            log_path = teamdir + '/testlog.txt'
-            with open(log_path, 'w') as logtxt:
-                logtxt.write(test_result.stdout)
-            tl.upload_file(
-                message.body['channel'],
-                log_path,
-                'binary test finish\n stdout'
-            )
+            time = datetime.datetime.now().strftime('%Y%m%d%H%M')
+            with open(test_config_yml) as fy_r:
+                conf = yaml.safe_load(fy_r)
 
-            discon_index = test_result.stdout.find('DisconnectedPlayer')
-            nl_index = test_result.stdout[discon_index:].find('\n')
-            discon_p = test_result.stdout[discon_index + len('DisconnectedPlayer'):discon_index + nl_index]
+            conf['log_dir'] = "log/" + teamname + "/" + time
+            conf['teams_dir'] = home
+            conf['teams'] = [ teamname, 'agent2d' ]
+
+            with open(test_config_yml, 'w') as fy_w:
+                yaml.dump(conf, fy_w, default_flow_style=False)
+
+            test_start = subprocess.run([tournament_path + 'start.sh', '--config=' + test_config_yml],
+                                        encoding='utf-8', stdout=subprocess.PIPE)
+            print(test_start.stdout)
+            analyze_test = subprocess.run(['../../test/analyze_test.sh',
+                                           tournament_path + conf['log_dir'], loganalyzer_path],
+                                          encoding='utf-8', stdout=subprocess.PIPE)
+            print(analyze_test.stdout)
+
+            if os.path.exists( tournament_path + conf['log_dir'] + '/match_1' ):
+                for f_name in os.listdir( tournament_path + conf['log_dir'] + '/match_1' ):
+                    if 'rc' in f_name and '.gz' in f_name:
+                        tl.upload_file_s( tournament_path + conf['log_dir'] + '/match_1/' + f_name, message.body['channel'] )
+
+            discon_index = analyze_test.stdout.find('DisconnectedPlayer')
+            nl_index = analyze_test.stdout[discon_index:].find('\n')
+            discon_p = analyze_test.stdout[discon_index + len('DisconnectedPlayer'):discon_index + nl_index]
             print('discon_p', discon_p)
             if discon_p == '':
                 message.send('test failed')
             elif int(discon_p) == 0:
                 q_path = '../../test/qualification.txt'
-                time = datetime.datetime.now().strftime('%Y%m%d%H%M')
                 if os.path.exists(q_path):
                     with open(q_path, 'r') as q_txt:
                         q_teams = q_txt.readlines()
@@ -714,13 +729,17 @@ def file_download(message):
                 msg = 'binary test complete'
                 ori_channel = message.body['channel']
                 message.body['channel'] = tl.getChannelID(message, organize_ch_n)
-                message.send(msg)
+                message.send(teamname + msg)
                 message.body['channel'] = ori_channel
                 message.send(msg)
             elif int(discon_p) > 0:
                 message.send('disconnected player(s) ' + discon_p)
             else:
                 message.send('test failed')
+                ori_channel = message.body['channel']
+                message.body['channel'] = tl.getChannelID(message, organize_ch_n)
+                message.send(teamname + ' test failed')
+                message.body['channel'] = ori_channel
             game_flag = False
             test_flag = False
         elif game_flag:
