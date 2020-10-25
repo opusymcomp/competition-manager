@@ -28,6 +28,7 @@ test_config_yml = tournament_path + conf['test_conf_path']
 db_access_token = conf['dbx_token']
 db_boot_dir = conf['dbx_boot_dir']
 competition_name = conf['competition_name']
+teams_dir = home
 
 bin_flag = False
 dbx_flag = False
@@ -260,7 +261,7 @@ def cool_func(message):
                     conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
             conf['log_dir'] = conf['log_dir'] + group + '/' + dt_now_M
 
-            conf['teams_dir'] = home
+            conf['teams_dir'] = teams_dir
             with open(config_yml, 'w') as fy_w:
                 yaml.dump(conf, fy_w, default_flow_style=False)
 

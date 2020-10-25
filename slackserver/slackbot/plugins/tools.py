@@ -301,8 +301,6 @@ class MyDropbox():
       depth_entries = self.dbx.files_list_folder(depth_path, recursive=True).entries
       depth_path = depth_path + '/' + depth
       for entry in depth_entries:
-        #print(entry)
-        print('entry: ' + depth_path)
         if entry.name == depth_path.split('/')[-1]:
           dir_flag = True
           print('exist dir path')
