@@ -29,6 +29,7 @@ db_access_token = conf['dbx_token']
 db_boot_dir = conf['dbx_boot_dir']
 competition_name = conf['competition_name']
 teams_dir = home
+q_path = '../../test/qualification.txt'
 
 bin_flag = False
 dbx_flag = False
@@ -50,7 +51,7 @@ else:
 @in_channel(organize_ch_n)
 def listen_func(message):
     msg = '[Command list]\n -team : Show binary test completion team.\n -group* TEAMNAME... : Create a group and ' \
-          'select teams to run the round-robin. (ex. groupA teams teamA,temaB,teamC,...)\n -start group* : Start ' \
+          'select teams to run the round-robin. (ex. groupA teams teamA,teamB,teamC,...)\n -start group* : Start ' \
           'round-robon. (ex. start groupA) '
     message.reply(msg)
 
@@ -108,6 +109,8 @@ def listen_func(message):
         if setting[1] in tl.getTourYmlKeys( config_yml ):
             flag = True
         if flag:
+            # if setting[1] == 'teams':
+            #     with open( q_path, 'w' ) as q_txt:
             tl.storeGroupYml( competition_conf_path, setting[0], setting[1], setting[2] )
             message.reply('setting config completed')
         else:
@@ -773,7 +776,7 @@ def file_download(message):
             if discon_p == '':
                 message.send('test failed')
             elif int(discon_p) == 0:
-                q_path = '../../test/qualification.txt'
+                #q_path = '../../test/qualification.txt'
                 if os.path.exists(q_path):
                     with open(q_path, 'r') as q_txt:
                         q_teams = q_txt.readlines()
@@ -826,7 +829,7 @@ def file_download(message):
 def file_download(message):
     org_mem = tl.getChannelMembers(message, organize_ch_n)
     if message.body['user'] in org_mem:  # organizer's id
-        q_path = '../../test/qualification.txt'
+        #q_path = '../../test/qualification.txt'
         if os.path.exists(q_path):
             with open(q_path, 'w') as q_txt:
                 pass
