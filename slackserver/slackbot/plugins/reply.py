@@ -109,10 +109,20 @@ def listen_func(message):
         if setting[1] in tl.getTourYmlKeys( config_yml ):
             flag = True
         if flag:
-            # if setting[1] == 'teams':
-            #     with open( q_path, 'w' ) as q_txt:
-            tl.storeGroupYml( competition_conf_path, setting[0], setting[1], setting[2] )
-            message.reply('setting config completed')
+            if setting[1] == 'teams':
+                with open( q_path, 'r' ) as q_txt:
+                    teamlines = q_txt.readlines()
+                for i in range( len(teamlines) ):
+                    teamlines[i] = teamlines[i].replace('\n', '')
+                    teamlines[i] = teamlines[i].split(',')
+                q_teams = [ teamlines[l][0] for l in range( len(teamlines) )]
+                for team in setting[2]:
+                    if team not in q_teams:
+                        message.reply(team + ' is not in qualifications.')
+                        setting[2] = [ txt_team for txt_team in setting[2] if txt_team in q_teams ]
+            if len(setting[2]) != 0:
+                tl.storeGroupYml( competition_conf_path, setting[0], setting[1], setting[2] )
+                message.reply('setting config completed.\n ' + str(setting[1]) + ':' + str(setting[2]) )
         else:
             message.reply(setting[1] + ' is not in config keys')
 
@@ -475,8 +485,8 @@ def listen_func(message):
                 continue
             elif i > 1:
                 mod_row = matches[i].split()
-                mod_row[1] = mod_row[1].strip(conf['teams_dir'])
-                mod_row[3] = mod_row[3].strip(conf['teams_dir'])
+                mod_row[1] = mod_row[1].replace(conf['teams_dir'], '')
+                mod_row[3] = mod_row[3].replace(conf['teams_dir'], '')
                 matches[i] = " ".join(mod_row)
             msg += matches[i] + '\n'
         message.send( msg )
