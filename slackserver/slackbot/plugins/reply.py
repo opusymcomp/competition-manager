@@ -50,7 +50,7 @@ else:
 @in_channel(organize_ch_n)
 def listen_func(message):
     msg = '[Command list]\n -team : Show binary test completion team.\n -group* TEAMNAME... : Create a group and ' \
-          'select teams to run the round-robin. (ex. groupA teamA,temaB,teamC,...)\n -start group* : Start ' \
+          'select teams to run the round-robin. (ex. groupA teams teamA,temaB,teamC,...)\n -start group* : Start ' \
           'round-robon. (ex. start groupA) '
     message.reply(msg)
 
@@ -58,7 +58,7 @@ def listen_func(message):
 @listen_to(r'^team$')
 @in_channel(organize_ch_n)
 def listen_func(message):
-    msg = 'Create a group and select teams to run the round-robin. (ex. groupA teamA,teamB,teamC,...)\n'
+    msg = 'Create a group and select teams to run the round-robin. (ex. groupA teams teamA,teamB,teamC,...)\n'
     opplist = tl.getOpponent()
     for i in range(len(opplist)):
         msg = msg + str(i + 1) + ' : ' + opplist[i] + '\n'
@@ -601,7 +601,6 @@ def listen_func(message):
         msg = 'Not allowed'
         message.reply(msg)
 
-
 # @respond_to(r'^adding$')
 # def listen_func(message):
 #     if message.body['user'] == organizer_id: #organizer's id
@@ -625,6 +624,7 @@ def listen_func(message):
 #     db = tl.MyDropbox(db_access_token, db_boot_dir)
 #     db.createFolder()
 #     db.viewFiles()
+
 
 
 
@@ -662,7 +662,7 @@ def file_download(message):
             msg = 'binary upload complete'
             ori_channel = message.body['channel']
             message.body['channel'] = tl.getChannelID(message, organize_ch_n)
-            message.send(teamname + msg)
+            message.send(teamname + ' ' + msg)
             message.body['channel'] = ori_channel
             message.send(msg)
         elif result == 'file type is not applicable.':
@@ -773,7 +773,7 @@ def file_download(message):
                 msg = 'binary test complete'
                 ori_channel = message.body['channel']
                 message.body['channel'] = tl.getChannelID(message, organize_ch_n)
-                message.send(teamname + msg)
+                message.send(teamname + ' ' + msg)
                 message.body['channel'] = ori_channel
                 message.send(msg)
             elif int(discon_p) > 0:
@@ -782,7 +782,7 @@ def file_download(message):
                 message.send('test failed')
                 ori_channel = message.body['channel']
                 message.body['channel'] = tl.getChannelID(message, organize_ch_n)
-                message.send(teamname + ' test failed')
+                message.send(teamname + '  test failed')
                 message.body['channel'] = ori_channel
             game_flag = False
             test_flag = False
