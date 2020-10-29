@@ -520,6 +520,30 @@ def listen_func(message):
     computers = text_comp.split()[1].split(',')
     tl.addYml( competition_conf_path, 'server', computers )
 
+@listen_to(r'^dropbox\w*')
+@in_channel(organize_ch_n)
+def listen_func(message):
+    txt_flag = ''
+    txt_list = message.body['text'].split()
+    if len(txt_list) == 2:
+        if txt_list[1] == 'false':
+            dbx_flag == False
+            message.send('dropbox_flag is changed to false.')
+        elif txt_list[1] == 'true':
+            dbx_flag == True
+            message.send('dropbox_flag is changed to true.')
+            db = tl.MyDropbox(db_access_token, db_boot_dir)
+            db.createFolder(db_boot_dir)
+        else:
+            txt_flag = 'help'
+            message.send('dropbox_flag is ' + str(dbx_flag))
+    else:
+        txt_flag = 'help'
+        message.send('dropbox_flag is ' + str(dbx_flag))
+    if txt_flag == 'help':
+        message.send('dropbox [true/false]:switching the dropbox_flag')
+
+
 # @listen_to(r'^create_ \w+')
 # @in_channel(organize_ch_n)
 # def listen_func(message):
