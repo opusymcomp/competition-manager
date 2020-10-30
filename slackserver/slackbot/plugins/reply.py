@@ -661,6 +661,7 @@ def listen_func(message):
 @listen_to(r'^test\w*')
 @in_channel(organize_ch_n)
 def listen_func(message):
+    print(message.body['text'])
     global game_flag
     txt_flag = ''
     txt_list = message.body['text'].split()
@@ -685,38 +686,66 @@ def listen_func(message):
                 txt_flag = 'teams'
     else:
         txt_flag = 'help'
+    print(txt_flag)
     if txt_flag == 'help':
         message.send('test qualification : testing qulificated binaries\n test [teams] : teating [teams] binaries (ex. test teamA,teamB)')
     elif game_flag == True:
         message.send('a game is conducted now.')
     else:
         game_flag = True
-        time = datetime.datetime.now().strftime('%Y%m%d%H%M')
+
         with open( q_path, 'r' ) as q_txt:
             teamlines = q_txt.readlines()
         for i in range( len(teamlines) ):
             teamlines[i] = teamlines[i].replace('\n', '')
             teamlines[i] = teamlines[i].split(',')
         q_teams = [ teamlines[l][0] for l in range( len(teamlines) )]
-        with open(test_config_yml) as fy_r:
-            conf = yaml.safe_load(fy_r)
-
-        conf['log_dir'] = "log/test/" + time
-        conf['teams_dir'] = home
-        conf['teams'] = [ 'agent2d' ]
         if txt_flag == 'qualification':
-            conf['teams'].extend( q_teams )
+            #conf['teams'].extend( q_teams )
+            t_teams = q_teams
         elif txt_flag == 'teams':
-            conf['teams'].extend( txt_list[1] )
+            #conf['teams'].extend( txt_list[1] )
+            t_teams = txt_list[1]
 
-        with open(test_config_yml, 'w') as fy_w:
-            yaml.dump(conf, fy_w, default_flow_style=False)
+        global stop_flag
+        stop_flag = False
+        for t_team in t_teams:
+            if stop_flag:
+                break
+            time = datetime.datetime.now().strftime('%Y%m%d%H%M')
+            with open(test_config_yml) as fy_r:
+                conf = yaml.safe_load(fy_r)
 
-        test_start = subprocess.run([tournament_path + 'start.sh', '--config=' + test_config_yml],
-                                    encoding='utf-8', stdout=subprocess.PIPE)
-        print(test_start.stdout)
+            conf['log_dir'] = "log/test/" + t_team + '/' + time
+            conf['teams_dir'] = home
+            conf['teams'] = [ t_team, 'agent2d' ]
+
+
+            with open(test_config_yml, 'w') as fy_w:
+                yaml.dump(conf, fy_w, default_flow_style=False)
+
+            message.send(t_team + ' test start.')
+            test_start = subprocess.run([tournament_path + 'start.sh', '--config=' + test_config_yml],
+                                        encoding='utf-8', stdout=subprocess.PIPE)
+            print(test_start.stdout)
+            message.send(t_team + ' test finish')
         message.send('test complete')
         game_flag = False
+
+
+
+@listen_to(r'^stop test$')
+@in_channel(organize_ch_n)
+def listen_func(message):
+    org_mem = tl.getChannelMembers(message, organize_ch_n)
+    if message.body['user'] in org_mem:
+        global stop_flag
+        stop_flag = True
+        msg = 'stop test'
+        message.reply(msg)
+    else:
+        msg = 'Not allowed'
+        message.reply(msg)
 
 
 @respond_to('^bin \w+')
