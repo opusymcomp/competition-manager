@@ -343,6 +343,9 @@ def cool_func(message):
 
         dt_finish = datetime.datetime.now().strftime('%Y%m%d%H%M')
         msg = 'The ' + group + ' finish! \n Finish time : ' + dt_finish
+        if dbx_flag:
+            db_g_link = db.get_shared_link( db_boot_dir + '/' + group )
+            msg += '\n' + db_g_link
         message.send(msg)
         message.body['channel'] = tl.getChannelID(message, announce_ch_n)
         message.send(msg)
@@ -541,11 +544,12 @@ def listen_func(message):
     txt_flag = ''
     txt_list = message.body['text'].split()
     if len(txt_list) == 2:
+        global dbx_flag
         if txt_list[1] == 'false':
-            dbx_flag == False
+            dbx_flag = False
             message.send('dropbox_flag is changed to false.')
         elif txt_list[1] == 'true':
-            dbx_flag == True
+            dbx_flag = True
             message.send('dropbox_flag is changed to true.')
             db = tl.MyDropbox(db_access_token, db_boot_dir)
             db.createFolder(db_boot_dir)
