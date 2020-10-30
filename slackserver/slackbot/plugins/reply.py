@@ -323,8 +323,9 @@ def cool_func(message):
                 db = tl.MyDropbox(db_access_token, db_match_dir)
                 db.createFolder(db_match_dir)
                 for match_file in os.listdir(match_dir):
-                    with open( match_dir + '/' + match_file, 'rb') as m_f:
-                        f_body = m_f.read()
+                    if os.path.getsize( match_dir + '/' + match_file ) != 0:
+                        with open( match_dir + '/' + match_file, 'rb') as m_f:
+                            f_body = m_f.read()
                         db.uploadFiles(f_body, match_file)
                 db_link = db.get_shared_link( db_match_dir )
             msg = 'match end\n' \
@@ -389,9 +390,10 @@ def listen_func(message):
                     db = tl.MyDropbox(db_access_token, db_match_dir)
                     db.createFolder( db_match_dir )
                     for match_file in os.listdir(match_dir):
-                        with open( match_dir + '/' + match_file, 'rb') as m_f:
-                            f_body = m_f.read()
-                        db.uploadFiles(f_body, match_file)
+                        if os.path.getsize( match_dir + '/' + match_file ) != 0:
+                            with open( match_dir + '/' + match_file, 'rb') as m_f:
+                                f_body = m_f.read()
+                            db.uploadFiles(f_body, match_file)
                     db_link = db.get_shared_link( db_match_dir )
 
                 msg = 'match end\n' \
@@ -655,14 +657,66 @@ def listen_func(message):
 #                     q_txt_ad.writelines(email+'\n')
 #             message.reply("add mail")
 
-# @respond_to('^test$')
-# def listen_func(message):
-#     message.send('test')
-#     db = tl.MyDropbox(db_access_token, db_boot_dir)
-#     db.createFolder()
-#     db.viewFiles()
 
+@listen_to(r'^test\w*')
+@in_channel(organize_ch_n)
+def listen_func(message):
+    global game_flag
+    txt_flag = ''
+    txt_list = message.body['text'].split()
+    if len( txt_list ) == 2:
+        if txt_list[1] == 'qualification':
+            txt_flag = txt_list[1]
+        elif txt_list[1] == 'help':
+            txt_flag = txt_list[1]
+        else:
+            txt_list[1] = txt_list[1].split(',')
+            with open( q_path, 'r' ) as q_txt:
+                teamlines = q_txt.readlines()
+            for i in range( len(teamlines) ):
+                teamlines[i] = teamlines[i].replace('\n', '')
+                teamlines[i] = teamlines[i].split(',')
+            q_teams = [ teamlines[l][0] for l in range( len(teamlines) )]
+            for team in txt_list[1]:
+                if team not in q_teams:
+                    message.reply(team + ' is not in qualifications.')
+                    txt_flag = 'help'
+            if txt_flag != 'help':
+                txt_flag = 'teams'
+    else:
+        txt_flag = 'help'
+    if txt_flag == 'help':
+        message.send('test qualification : testing qulificated binaries\n test [teams] : teating [teams] binaries (ex. test teamA,teamB)')
+    elif game_flag == True:
+        message.send('a game is conducted now.')
+    else:
+        game_flag = True
+        time = datetime.datetime.now().strftime('%Y%m%d%H%M')
+        with open( q_path, 'r' ) as q_txt:
+            teamlines = q_txt.readlines()
+        for i in range( len(teamlines) ):
+            teamlines[i] = teamlines[i].replace('\n', '')
+            teamlines[i] = teamlines[i].split(',')
+        q_teams = [ teamlines[l][0] for l in range( len(teamlines) )]
+        with open(test_config_yml) as fy_r:
+            conf = yaml.safe_load(fy_r)
 
+        conf['log_dir'] = "log/test/" + time
+        conf['teams_dir'] = home
+        conf['teams'] = [ 'agent2d' ]
+        if txt_flag == 'qualification':
+            conf['teams'].extend( q_teams )
+        elif txt_flag == 'teams':
+            conf['teams'].extend( txt_list[1] )
+
+        with open(test_config_yml, 'w') as fy_w:
+            yaml.dump(conf, fy_w, default_flow_style=False)
+
+        test_start = subprocess.run([tournament_path + 'start.sh', '--config=' + test_config_yml],
+                                    encoding='utf-8', stdout=subprocess.PIPE)
+        print(test_start.stdout)
+        message.send('test complete')
+        game_flag = False
 
 
 @respond_to('^bin \w+')
