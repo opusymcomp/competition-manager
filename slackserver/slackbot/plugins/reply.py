@@ -323,10 +323,10 @@ def cool_func(message):
                 db = tl.MyDropbox(db_access_token, db_match_dir)
                 db.createFolder(db_match_dir)
                 for match_file in os.listdir(match_dir):
-                    if os.path.getsize( match_dir + '/' + match_file ) != 0:
-                        with open( match_dir + '/' + match_file, 'rb') as m_f:
-                            f_body = m_f.read()
-                        db.uploadFiles(f_body, match_file)
+                    #if os.path.getsize( match_dir + '/' + match_file ) != 0:
+                    with open( match_dir + '/' + match_file, 'rb') as m_f:
+                        f_body = m_f.read()
+                    db.uploadFiles(f_body, match_file)
                 db_link = db.get_shared_link( db_match_dir )
             msg = 'match end\n' \
                   + match_list['match_' + str(match_n)]['team_l'] + '_' \
@@ -393,10 +393,10 @@ def listen_func(message):
                     db = tl.MyDropbox(db_access_token, db_match_dir)
                     db.createFolder( db_match_dir )
                     for match_file in os.listdir(match_dir):
-                        if os.path.getsize( match_dir + '/' + match_file ) != 0:
-                            with open( match_dir + '/' + match_file, 'rb') as m_f:
-                                f_body = m_f.read()
-                            db.uploadFiles(f_body, match_file)
+                        #if os.path.getsize( match_dir + '/' + match_file ) != 0:
+                        with open( match_dir + '/' + match_file, 'rb') as m_f:
+                            f_body = m_f.read()
+                        db.uploadFiles(f_body, match_file)
                     db_link = db.get_shared_link( db_match_dir )
 
                 msg = 'match end\n' \
