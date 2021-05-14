@@ -1,0 +1,23 @@
+# tool path
+competition_manager_path: /path/to/competition-manager/
+loganalyzer_path: /path/to/loganalyzer3/
+tournament_path: /path/to/tournament/
+
+# API setting
+slack_api_token: [slack_token]
+dropbox_access_token: [dropbox_token]
+dropbox_boot_dir: /testlog
+google_drive_client_id: [client_id]
+google_drive_client_secret: [client_secret]
+google_drive_folder_id: [folder_id]
+
+# slack options
+organizer_channel_name: [organizer_ch]
+announce_channel_name: [announce_ch]
+
+# competition options
+competition_name: [Competition name]
+# !!!!! teams are saved on HOME directory.
+#       The following setting are used to save archives!!!!! #
+teams_dir: /path/to/archive/teams/
+log_dir: /path/to/archive/logs/

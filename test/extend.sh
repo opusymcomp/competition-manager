@@ -1,13 +1,14 @@
 #!/bin/bash
 echo ${1}
 
-cd `dirname $0`
-CDIR=$(cd ../; pwd)
+FILENAME=${1}
+TEAMS_DIR=${2}
+COMPETITION_MANAGER_DIR=${3}
+DIR=`dirname $0`
+CDIR=`pwd`
 
-cd $HOME
+cd $TEAMS_DIR
+tar xvf $FILENAME
 
-tar xvf ${1} &> ${CDIR}/test/stdlog.txt
-wait
-cd ${CDIR}/test
-#sleep 5;
-cp start.sh ~/${1%%.*}
+# back to working directory
+cd ${CDIR}

@@ -32,6 +32,7 @@ $ pip install slackbot
 $ pip install gspread
 $ pip install oauth2client
 $ pip install pyyaml
+$ pip install pydrive
 ```
 
 ## Setting
@@ -53,60 +54,20 @@ competition-manager/slackserver/slackbot/slackbot_settings.py
 competition-manager/test/autotest.sh
 ```
 
+### competition-managerの設定
+次のファイルに各設定を書き込む．
+```
+competition-manager/config/manager.yml
+```
+
 ### tournamentの設定
 toolでインストールしたtournamentの設定を行う．以下のファイルを作成・編集する．
-```
-tournament/config/config.yml
-```
-- ログの保存場所の設定
-  - 次の行を任意のディレクトリに変更する．
-```
-log_dir: log/dir_name
-```
 
 - confファイルの設定
   - 次の行を試合設定によって変更する．
 ```
 player_conf: config/rcssserver/player_official.conf
 server_conf: config/rcssserver/server_official.conf
-```
-
-- チームディレクトリ位置の設定
-  - 次の行を competition-manager/slackserver/slackbot/plugins/reply.py と同じディレクトリを指定する（初期設定は/home/user/）．
-```
-teams_dir: /home/user/
-```
-
-### reply.pyの設定
-次のファイルを編集する．
-```
-competition-manager/slackserver/slackbot/plugins/reply.py
-```
-- 次の行をtournamentからconfigへの相対パスに設定
-```
-config='config/config.yml'
-```
-
-- organizerチャンネルの名前を設定
-  - 次の行で，グループ作成や試合開始などを実行するチャンネルを設定
-```
-organize_ch_n='organizer'
-```
-
-- 管理者のid設定
-  - 次の行で，バイナリアップロード開始コマンドなどを行うユーザのidを設定
-```
-organizer_id="ORGANIZER_ID"
-```
-
-- 次の行で，toolでインストールしたloganalyzer3への絶対パスを設定
-```
-loganalyzer_path='/home/user/path/to/loganalyzer3/'
-```
-
-- 次の行で，toolでインストールしたtournamentへの絶対パスを設定
-```
-tournament_path='/home/user/competition-manager/tournament/'
 ```
 
 ### resultsの設定
@@ -122,10 +83,32 @@ doc_id='[document_id]'
 ```
 https://docs.google.com/spreadsheets/d/[document_id]/edit#gid=0
 ```
+
+
+### GoogleDriveアップロードの設定
+OAuthクライアントIDを取得する．
+- [参考]（https://qiita.com/akabei/items/f25e4f79dd7c2f754f0e）
+
+クライアントID，クライアントシークレットを以下のファイルに記入
+```
+competition-manager/config/manager.yml
+```
+
+以下のファイルを実行
+```
+$ cd competition-manager/config
+$ python drive.py
+```
+
+認証を行う．以下のファイルが生成されていれば成功．
+```
+competition-manager/config/credentials.json
+```
+
 ### チームリーダーの登録
 チームをアップロードするユーザのメールアドレスを以下のファイルに記入
 ```
-competition-manager/test/maillist.txt
+competition-manager/config/maillist.txt
 ```
 
 ## Usage
@@ -135,21 +118,6 @@ $ python ./run.py
 ```
 このコマンド後は，slack上で操作
 
-
-### 管理者のidに設定したuserで可能なコマンド
-- slackbotにDMでバイナリ受け入れ開始コマンドを送信
-```
-upload start
-upload end
-```
-- バイナリテスト完了チームリストの初期化
-```
-clear qualification
-```
-- 試合中フラグの初期化
-```
-gameflag false
-```
 
 ### 管理者用チャンネルで可能なコマンド
 - コマンドの説明
@@ -172,6 +140,36 @@ start group*
 ```
 announce match
 ```
+- slackbotにDMでバイナリ受け入れ開始コマンドを送信
+```
+upload start
+upload end
+```
+- バイナリテスト完了チームリストの初期化
+```
+clear
+```
+- 各フラグの確認
+```
+status
+```
+- rcssserverのIPアドレスをセット（そのホストへは鍵交換をするなどしてパスワード無しで入れるようにしておく）
+```
+server *
+```
+- hostのIPアドレスをセット（そのホストへは鍵交換をするなどしてパスワード無しで入れるようにしておく）
+```
+host host1,host2
+```
+- Google Driveへ自動アップロード on (off)
+```
+gdrive true (or false)
+```
+- Google Driveに手動アップロード
+```
+share teams (or logs)
+```
+
 
 # Participants
 [画像付きマニュアル](https://docs.google.com/document/d/1MCK7K-u6vaTPXFklca4m6ZYC2Izul3Cr4Psi4NJtS-Y/edit#)

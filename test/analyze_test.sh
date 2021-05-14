@@ -51,7 +51,7 @@ mkdir -p ./log_ana
 rm ./log_ana/*
 
 cd ./log_ana
-loganalyzer3 ${LOGDIR} -l
+loganalyzer3 ${LOGDIR} --side l
 cd ${SH_DIR}
 
 DISCONNECTED_P=`python analyze_test.py ./log_ana/`

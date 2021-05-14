@@ -3,361 +3,357 @@ import os
 import subprocess
 import requests
 import codecs
-import slackbot_settings
+from slackbot_settings import *
 import dropbox
 import yaml
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 from slacker import Slacker
-slacker = Slacker(slackbot_settings.API_TOKEN)
 
-with open( "./conf.yml" ) as fy_r:
-    conf = yaml.safe_load( fy_r )
-home = os.path.expanduser("~") + "/"
-loganalyzer_path = home + conf['loganalyzer_path']
-tournament_path = home + conf['tournament_path']
-sample_config_yml = tournament_path + conf['sample_conf_path']
+slacker = Slacker(API_TOKEN)
 
 comp_flag_dict = {}
 
 
 def resCmd(cmd):
-  return subprocess.Popen(
-      cmd, stdout=subprocess.PIPE,
-      shell=True).communicate()[0]
+    return subprocess.Popen(
+        cmd, stdout=subprocess.PIPE,
+        shell=True).communicate()[0]
 
 
-def getOpponent():
-    cmd = ("cat ../../test/qualification.txt")
-    settinglist = resCmd(cmd).decode('utf-8').strip().split()
-    return settinglist
+def getHelpMessageForOrganizers():
+    msg = '[Command list]\n' \
+          ' -team : Show qualified team that succeeded the binary test.\n' \
+          ' -clear qualification : Clear qualification.\n' \
+          ' -server* : Update IP address for rcssserver. (e.g. server 127.0.0.1)\n' \
+          ' -host* : Update hosts\' IP addresses for teams. 2 addresses are required. (e.g. host 127.0.0.1,127.0.0.1)\n' \
+          ' -group* : Create a group and select teams to run the round-robin. (e.g. groupA teamA,teamB,teamC,...)\n' \
+          ' -start group* : Start round-robon. (e.g. start groupA)\n' \
+          ' -upload start : Add upload authorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
+          ' -upload end : Remove upload autorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
+          ' -test : Test qualified teams. (e.g. test teamA,teamB,teamC,...)\n' \
+          ' -stop test : Cancel testing teams\n' \
+          ' -announce match: Announce the progress report and match result\n' \
+          ' -check matches: Simulate the group matches and announce the schedule\n' \
+          ' -dropbox* : Switch dropbox flag whether dropbox will be used or not. (e.g. dropbox true)\n' \
+          ' -gdrive* : Switch google_drive flag whether google_drive will be used or not. (e.g. gdrive true)\n' \
+          ' -share* : Send files to the Cloud storage. Choose \'teams\' or \'logs\' as an argument (e.g. share teams)\n'
+    return msg
 
 
-def getRoundrobin(setting ,gtxt):
-    data = ''.join(setting[7:])
-    path = ('../../tournament/config/group/'+gtxt)
-    f = open(path, mode='w+')
-    f.write(data)
-    f.close()
-    return data
+def getHelpMessageForAnnounce():
+    msg = 'commnand \'help\' is not supported in this channel.'
+    return msg
+
+
+def getHelpMessageForDM():
+    msg = '\'bin\' command is only available in DM. (e.g. bin teamA)'
+    return msg
+
+
+def getHelpMessageUnsupported():
+    msg = 'commnand \'help\' is not supported in this channel.'
+    return msg
+
+
+def getQualifiedTeams():
+    with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'r') as q_txt:
+        qualified_teams = q_txt.readlines()
+    for i in range(len(qualified_teams)):
+        qualified_teams[i] = qualified_teams[i].replace('\n', '').split(',')[0]
+    return qualified_teams
 
 
 def getStartgroup(startgroup):
-    startgroup =  ''.join(startgroup[6:])
-    print('startgroup',startgroup)
+    startgroup = ''.join(startgroup[6:])
+    print('startgroup', startgroup)
     gtxt = startgroup + '.txt'
-    path = ('../../tournament/config/group/'+gtxt)
+    path = ('{}config/group/{}'.format(TOURNAMENT_PATH, gtxt))
     f = open(path, mode='r+')
     datalist = [s.split(',') for s in f.readlines()][0]
     f.close()
     return datalist
 
 
+def getChannelID(message, name):
+    for id_num, info in message.channel._client.channels.items():
+        if name == info['name']:
+            return id_num
+
+
+def isChannelMembers(message, channel_name):
+    channel_id = getChannelID(message, channel_name)
+    return message.channel._client.channels[channel_id]['is_member']
+
+
+def upload_file(channel_id, file_path, comment):
+    file_name = os.path.basename(file_path)
+    param = {
+        'token': API_TOKEN,
+        'channels': channel_id,
+        'filename': file_name,
+        'initial_comment': comment,
+        'title': file_name
+    }
+    files = {
+        'file': open(file_path, 'rb')
+    }
+    upload_url = "https://slack.com/api/files.upload"
+    requests.post(url=upload_url, params=param, files=files)
+
+
+def upload_file_s(file_path, channel_id):
+    if os.path.exists(file_path):
+        slacker.files.upload(file_=file_path, channels=channel_id)
+
+
+def loadYml(path):
+    with open(path, 'r') as f:
+        return yaml.safe_load(f)
+
+
+def saveYml(yaml_conf, path):
+    with open(path, 'w') as f:
+        yaml.dump(yaml_conf, f, default_flow_style=False)
+
+
+def overwriteYml(path, added_info):
+    if os.path.exists(path):
+        yaml_conf = loadYml(path)
+    else:
+        print('({}) {} is not exist'.format(overwriteYml.__name__, path))
+        print('({}) create new yml file'.format(overwriteYml.__name__))
+        yaml_conf = {'hosts': ['', ''],
+                     'log_dir': '',
+                     'match_sleep': 2,
+                     'mode': 'group',
+                     'player_conf': 'config/rcssserver/player_official.conf'.format(TOURNAMENT_PATH),
+                     'server_conf': 'config/rcssserver/server_official.conf'.format(TOURNAMENT_PATH),
+                     'shutdown_sleep': 2,
+                     'team_mode': 'official',
+                     'teams': ['', ''],
+                     'teams_dir': os.environ['HOME'],
+                     'title': COMPETITION_NAME
+                     }
+
+    for key, value in added_info.items():
+        yaml_conf[key] = value
+
+    saveYml(yaml_conf, path)
+
+
+def startGame(yml):
+    current_dir = os.getcwd()
+    os.chdir(TOURNAMENT_PATH)
+    result = subprocess.run([TOURNAMENT_PATH + 'start.sh',
+                             '--config=' + yml],
+                            encoding='utf-8', stdout=subprocess.PIPE)
+    os.chdir(current_dir)
+    return result
+
+
+def startSimulate(yml):
+    current_dir = os.getcwd()
+    os.chdir(TOURNAMENT_PATH)
+    result = subprocess.run([TOURNAMENT_PATH + 'start.sh',
+                             '--config=' + yml + ' --simulate'],
+                            encoding='utf-8', stdout=subprocess.PIPE)
+    os.chdir(current_dir)
+    return result
+
+
 def getTeamsInGroup(group):
-  path = ('../../tournament/config/group/' + group + '.txt')
-  f = open(path, mode='r+')
-  datalist = [s.split(',') for s in f.readlines()][0]
-  f.close()
-  return datalist
+    teams_in_group = []
+    if os.path.exists('{}config/group.yml'.format(COMPETITION_MANAGER_PATH)):
+        group_yaml = loadYml('{}config/group.yml'.format(COMPETITION_MANAGER_PATH))
+        if group in group_yaml.keys():
+            teams_in_group = group_yaml[group]
+    return teams_in_group
 
 
-def saveGroup(setting):
-    currentpath = os.getcwd()
-    #home = os.environ['HOME']
-    if not os.path.isdir('../../tournament/config/group'):
-      os.makedirs('../../tournament/config/group')
-    os.chdir("../../tournament/config/group")
-    group = setting[0] # ''.join(setting[:6])
-    gtxt = group + '.txt'
-    cmd = 'touch %s' % gtxt
-    subprocess.run(cmd, shell=True)
-    print ('gtxt:',gtxt)
-    os.chdir(currentpath)
-    return gtxt
-
-
-def getChannelID( message, name ):
-  for id_num, info in message.channel._client.channels.items():
-    if name == info['name']:
-      return id_num
-
-
-def getChannelMembers( message, channel_name ):
-  channel_id = getChannelID(message, channel_name)
-  return message.channel._client.channels[channel_id]['members']
-
-
-def upload_file( channel_id, file_path, comment ):
-  file_name = os.path.basename(file_path)
-  param = {
-    'token':slackbot_settings.API_TOKEN,
-    'channels':channel_id,
-    'filename':file_name,
-    'initial_comment':comment,
-    'title':file_name
-  }
-  files = {
-    'file': open(file_path, 'rb')
-  }
-  upload_url = "https://slack.com/api/files.upload"
-  requests.post( url=upload_url, params=param, files=files)
-
-def upload_file_s( file_path, channel_id ):
-  if os.path.exists( file_path ):
-    slacker.files.upload( file_=file_path, channels=channel_id )
-
-
-def loadGroupYml( tournament_conf_path, group, group_conf_path ):
-  if os.path.exists( group_conf_path ):
-    with open( group_conf_path ) as fy:
-      yaml_conf = yaml.safe_load(fy)
-  else:
-    print('not exist group conf file')
-
-  if os.path.exists( tournament_conf_path ):
-    with open( tournament_conf_path ) as fy:
-      tournament_conf = yaml.safe_load(fy)
-  else:
-    print('not exist tournament conf file')
-
-  if group in yaml_conf.keys():
-    group_conf = yaml_conf[group]
-  else:
-    print('not exist ' + group + 'conf')
-
-  for key in group_conf.keys():
-    tournament_conf[key] = group_conf[key]
-
-  with open( tournament_conf_path, 'w' ) as fy_w:
-    yaml.dump( tournament_conf, fy_w, default_flow_style=False )
-
-
-def storeGroupYml( group_conf_path, group, key, values ):
-  if os.path.exists( group_conf_path ):
-    with open( group_conf_path ) as fy:
-      yaml_conf = yaml.safe_load(fy)
-  else:
-    print('not exist file')
-    yaml_conf = {}
-
-  if group not in yaml_conf.keys():
-    yaml_conf[group] = {}
-
-  # if list != type(values):
-  #   values = values.split()
-
-  if key in getTourYmlKeys():
-    if len(values) == 1:
-      yaml_conf[group][key] = values[0]
-    else:
-      yaml_conf[group][key] = values
-  else:
-    print(key + ' does not exist in tournament conf')
-    return False
-
-  with open( group_conf_path, 'w' ) as fy_w:
-    yaml.dump( yaml_conf, fy_w, default_flow_style=False )
-  return True
-
-
-def listGroupYml( path, group, key ):
-  if os.path.exists( path ):
-    with open( path ) as fy:
-      yaml_conf = yaml.safe_load(fy)
-  else:
-    print('not exist file')
-    return False
-
-  if group not in yaml_conf.keys():
-    print('not in ' + group + ' config')
-    return False
-  elif key in yaml_conf[group].keys():
-    return yaml_conf[group][key]
-  else:
-    print('not in')
-    return False
-
-
-def getTourYmlKeys( tournament_conf_path=sample_config_yml ):
-  if os.path.exists( tournament_conf_path ):
-    with open( tournament_conf_path ) as fy:
-      tour_conf = yaml.safe_load(fy)
-  else:
-    print('not exist ' + tournament_conf_path )
-    return []
-
-  return tour_conf.keys()
-
-
-def writeYml( path, key, values ):
-  if os.path.exists( path ):
-    with open( path ) as fy:
-      yaml_conf = yaml.safe_load(fy)
-  else:
-    yaml_conf = {}
-
-  yaml_conf[key] = values
-
-  with open( path, 'w' ) as fy_w:
-    yaml.dump( yaml_conf, fy_w, default_flow_style=False )
-
-
-def addYml( path, key, values ):
-  if os.path.exists( path ):
-    with open( path ) as fy:
-      yaml_conf = yaml.safe_load(fy)
-  else:
-    yaml_conf = {}
-    print('not exist yaml file')
-
-  if list != type(values):
-    values = values.split()
-
-  if key in yaml_conf.keys():
-    for value in values:
-      if value not in yaml_conf[key]:
-        if list != type(yaml_conf[key]):
-          yaml_conf[key] = yaml_conf[key].split()
-        yaml_conf[key].append( value )
-  else:
-    yaml_conf[key] = values
-
-  with open( path, 'w' ) as fy_w:
-    yaml.dump( yaml_conf, fy_w, default_flow_style=False )
-
-
-def deleteYml( path, key, values ):
-  if os.path.exists( path ):
-    with open( path ) as fy:
-      yaml_conf = yaml.safe_load(fy)
-  else:
-    yaml_conf = {}
-
-  if list != type(values):
-    values = values.split()
-
-  for value in values:
-    if value in yaml_conf[key]:
-      if list != type( yaml_conf[key] ):
-        yaml_conf[key] = yaml_conf[key].split()
-      yaml_conf[key].remove( value )
-    else:
-      print( value + ' not in ' + key + ' values')
-
-  with open( path, 'w' ) as fy_w:
-    yaml.dump( yaml_conf, fy_w, default_flow_style=False )
-
-
-def listYml( path, key ):
-  flag = False
-  if os.path.exists( path ):
-    with open( path ) as fy:
-      yaml_conf = yaml.safe_load(fy)
-    flag = True
-  else:
-    print('not exist file')
-
-  if flag and key in yaml_conf.keys():
-    return yaml_conf[key]
-  else:
-    return 'not in'
+def sendMessageToChannels(message, message_str, channels, default_id):
+    for channel in channels:
+        message.body['channel'] = channel
+        message.send(message_str)
+    # set default
+    message.body['channel'] = default_id
 
 
 class MyDropbox():
-  DB_ACCESS_TOKEN = ''
-  DB_ROOT_DIR = ''
+    def __init__(self, token, dir_path):
+        self.DB_ACCESS_TOKEN = token
+        self.DB_ROOT_DIR = dir_path
+        self.dbx = dropbox.Dropbox(self.DB_ACCESS_TOKEN)
 
-  def __init__(self, token, dir_path):
-    self.DB_ACCESS_TOKEN = token
-    self.DB_ROOT_DIR = dir_path
-    self.dbx = dropbox.Dropbox(self.DB_ACCESS_TOKEN)
+    def viewFiles(self):
+        res = self.dbx.files_list_folder(self.DB_ROOT_DIR, recursive=True)
 
-  def viewFiles(self):
-    res = self.dbx.files_list_folder(self.DB_ROOT_DIR, recursive=True)
+        self.__get_files_recursive(res)
 
-    self.__get_files_recursive(res)
+    def dbox(self):
+        print(self.dbx.users_get_current_account())
+        setting = dropbox.sharing.SharedLinkSettings(requested_visibility=dropbox.sharing.RequestedVisibility.public)
+        print(setting)
+        result = self.dbx.files_list_folder(path="")
+        for entry in self.dbx.files_list_folder('').entries:
+            print(entry.name)
 
-  def dbox(self):
-    print(self.dbx.users_get_current_account())
-    setting = dropbox.sharing.SharedLinkSettings(requested_visibility=dropbox.sharing.RequestedVisibility.public)
-    print(setting)
-    result = self.dbx.files_list_folder(path="")
-    for entry in self.dbx.files_list_folder('').entries:
-      print(entry.name)
+    def createFolder(self, path):
+        dir_path = path  # self.DB_ROOT_DIR
+        # print(dir_path)
+        depth_path = ''
+        # for entry in self.dbx.files_list_folder(depth_path, recursive=True).entries:
+        #   #print(entry)
+        #   if entry.name == dir_path.split('/')[-1]:
+        #     dir_flag = True
+        #     print('exist dir path')
+        # if not dir_flag:
+        #   self.dbx.files_create_folder_v2(dir_path)
+        #   print('created directory')
+        for depth in dir_path.split('/')[1:]:
+            dir_flag = False
+            print('pre_entry: ' + depth_path)
+            depth_entries = self.dbx.files_list_folder(depth_path).entries
+            depth_path = depth_path + '/' + depth
+            print('depth_path: ' + depth_path.split('/')[-1])
+            for entry in depth_entries:
+                print('entry: ' + entry.name)
+                if entry.name == depth_path.split('/')[-1]:
+                    dir_flag = True
+                    print('exist dir path')
+                    break
+            if not dir_flag:
+                self.dbx.files_create_folder_v2(depth_path)
+                print('created directory')
+        print(dir_path)
 
-  def createFolder(self, path):
-    dir_path = path #self.DB_ROOT_DIR
-    #print(dir_path)
-    depth_path = ''
-    # for entry in self.dbx.files_list_folder(depth_path, recursive=True).entries:
-    #   #print(entry)
-    #   if entry.name == dir_path.split('/')[-1]:
-    #     dir_flag = True
-    #     print('exist dir path')
-    # if not dir_flag:
-    #   self.dbx.files_create_folder_v2(dir_path)
-    #   print('created directory')
-    for depth in dir_path.split('/')[1:]:
-      dir_flag = False
-      print('pre_entry: ' + depth_path)
-      depth_entries = self.dbx.files_list_folder(depth_path).entries
-      depth_path = depth_path + '/' + depth
-      print('depth_path: ' + depth_path.split('/')[-1])
-      for entry in depth_entries:
-        print('entry: ' + entry.name)
-        if entry.name == depth_path.split('/')[-1]:
-          dir_flag = True
-          print('exist dir path')
-          break
-      if not dir_flag:
-        self.dbx.files_create_folder_v2(depth_path)
-        print('created directory')
-    print(dir_path)
+        # pre_dir_path = '/'.join(dir_path.split('/')[0:-1])
+        # print(pre_dir_path)
+        # for entry in self.dbx.files_list_folder(pre_dir_path, recursive=True).entries:
+        #   if entry.name == dir_path.split('/')[-1]:
+        #     dir_flag = True
+        #     print('exist dir path')
+        # if not dir_flag:
+        #   self.dbx.files_create_folder_v2(dir_path)
+        #   print('created directory')
 
-    # pre_dir_path = '/'.join(dir_path.split('/')[0:-1])
-    # print(pre_dir_path)
-    # for entry in self.dbx.files_list_folder(pre_dir_path, recursive=True).entries:
-    #   if entry.name == dir_path.split('/')[-1]:
-    #     dir_flag = True
-    #     print('exist dir path')
-    # if not dir_flag:
-    #   self.dbx.files_create_folder_v2(dir_path)
-    #   print('created directory')
+    def uploadFiles(self, contents, file_name):
+        self.dbx.files_upload(contents, self.DB_ROOT_DIR + '/' + file_name, autorename=True)
 
-  def uploadFiles(self, contents, file_name):
-    self.dbx.files_upload( contents, self.DB_ROOT_DIR + '/' + file_name, autorename=True )
+    def get_shared_link(self, path):
+        return self.__get_shared_link(path)
 
-  def get_shared_link(self, path):
-    return self.__get_shared_link(path)
+    def __get_files_recursive(self, res):
+        for entry in res.entries:
+            ins = type(entry)
+            # if ins is not dropbox.files.FileMetadata: #ファイル以外（＝フォルダ）はスキップ
+            #     continue
 
-  def __get_files_recursive(self, res):
-    for entry in res.entries:
-      ins = type(entry)
-      # if ins is not dropbox.files.FileMetadata: #ファイル以外（＝フォルダ）はスキップ
-      #     continue
+            link = self.__get_shared_link(entry.path_lower)
+            if bool(link):
+                print(entry.path_display)
+                print(link)
 
-      link = self.__get_shared_link(entry.path_lower)
-      if bool(link):
-        print(entry.path_display)
-        print(link)
+        if res.has_more:
+            res2 = self.dbx.files_list_folder_continue(res.cursor)
+            self.__get_files_recursive(res2)
 
-    if res.has_more:
-      res2 = self.dbx.files_list_folder_continue(res.cursor)
-      self.__get_files_recursive(res2)
+    def __get_shared_link(self, path):
+        links = self.dbx.sharing_list_shared_links(path=path, direct_only=True).links
 
-  def __get_shared_link(self, path):
-    links = self.dbx.sharing_list_shared_links(path=path, direct_only=True).links
+        if links is not None:
+            for link in links:
+                return link.url  # 1件目
 
-    if links is not None:
-      for link in links:
-        return link.url #1件目
+        return self.__create_shared_link(path)
 
-    return self.__create_shared_link(path)
+    def __create_shared_link(self, path):
+        setting = dropbox.sharing.SharedLinkSettings(requested_visibility=dropbox.sharing.RequestedVisibility.public)
+        link = self.dbx.sharing_create_shared_link_with_settings(path=path, settings=setting)
 
-  def __create_shared_link(self, path):
-    setting = dropbox.sharing.SharedLinkSettings(requested_visibility=dropbox.sharing.RequestedVisibility.public)
-    link = self.dbx.sharing_create_shared_link_with_settings(path=path, settings=setting)
+        return link.url
 
-    return link.url
+
+class MyGoogleDrive(object):
+    def __init__(self):
+        current_dir = os.getcwd()
+        os.chdir(COMPETITION_MANAGER_PATH + 'config')
+
+        self.gauth = GoogleAuth()
+        self.gauth.attr['settings']['client_config']['client_id'] = GOOGLE_DRIVE_CLIENT_ID
+        self.gauth.attr['settings']['client_config']['client_secret'] = GOOGLE_DRIVE_CLIENT_SECRET
+        self.gauth.CommandLineAuth()
+        self.drive = GoogleDrive(self.gauth)
+        self.folder_id = GOOGLE_DRIVE_FOLDER_ID
+
+        os.chdir(current_dir)
+
+    def upload(self, path):
+        if len(path) != 0 and path[-1] == '/':
+            local_data_path = path[:-1]
+        else:
+            local_data_path = path
+
+        t_folder = self.__createDir(GOOGLE_DRIVE_FOLDER_ID, os.path.basename(local_data_path))
+        self.__upload_recursive(t_folder, local_data_path)
+
+    def __upload_recursive(self, parent_directory, path):
+        dir_list = self.__getDirList(path)
+        if len(dir_list) == 0:
+            file_list = self.__getFileList(path)
+            for f in file_list:
+                self.__uploadFile(parent_directory['id'], f)
+        else:
+            for d in dir_list:
+                d_folder = self.__createDir(parent_directory['id'], os.path.basename(d))
+                self.__upload_recursive(d_folder, path + '/' + os.path.basename(d))
+
+    def __createDir(self, pid, fname):
+        ret = self.__checkFiles(pid, fname)
+        if not ret:
+            folder = self.drive.CreateFile({'title': fname, 'mimeType': 'application/vnd.google-apps.folder'})
+            folder['parents'] = [{'id': pid}]
+            folder.Upload()
+        else:
+            folder = ret
+            print(folder['title'] + " exists")
+
+        return folder
+
+    def __uploadFile(self, pid, fname):
+        ret = self.__checkFiles(pid, fname)
+        if not ret:
+            gf = self.drive.CreateFile()
+            gf['parents'] = [{'id': pid}]
+            gf.SetContentFile(fname)
+            gf['title'] = os.path.basename(fname)
+            gf.Upload()
+        else:
+            gf = ret
+            print(gf['title'] + " exists")
+        return gf
+
+    def __checkFiles(self, pid, fname):
+        query = '"{}" in parents and trashed = false'.format(pid)
+        query += ' and title = "' + os.path.basename(fname) + '"'
+
+        list = self.drive.ListFile({'q': query}).GetList()
+        if len(list) > 0:
+            return list[0]
+        return False
+
+    @staticmethod
+    def __getDirList(basedir):
+        files = os.listdir(basedir)
+        ret = [os.path.join(basedir, f) for f in files if os.path.isdir(os.path.join(basedir, f))]
+        return ret
+
+    @staticmethod
+    def __getFileList(basedir):
+        files = os.listdir(basedir)
+        ret = [os.path.join(basedir, f) for f in files if os.path.isfile(os.path.join(basedir, f))]
+        return ret
 
 
 if __name__ == '__main__':
-    getOpponent()
+    pass

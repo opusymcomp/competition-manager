@@ -1,0 +1,3 @@
+hogehoge@gmail.com,teamname1
+fugafuga@gmail.com,teamname2
+
