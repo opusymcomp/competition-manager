@@ -18,6 +18,9 @@ GOOGLE_DRIVE_CLIENT_ID = MANAGER_CONF['google_drive_client_id']
 GOOGLE_DRIVE_CLIENT_SECRET = MANAGER_CONF['google_drive_client_secret']
 GOOGLE_DRIVE_FOLDER_ID = MANAGER_CONF['google_drive_folder_id']
 
+DISCORD_TOKEN = MANAGER_CONF['discord_token']
+DISCORD_CHANNEL_ID = MANAGER_CONF['discord_channel_id']
+
 ORGANIZER_CHANNEL_NAME = MANAGER_CONF["organizer_channel_name"]
 ANNOUNCE_CHANNEL_NAME = MANAGER_CONF['announce_channel_name']
 

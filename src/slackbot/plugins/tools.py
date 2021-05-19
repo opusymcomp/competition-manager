@@ -27,6 +27,7 @@ def getHelpMessageForOrganizers():
           ' -clear qualification : Clear qualification.\n' \
           ' -server* : Update IP address for rcssserver. (e.g. server 127.0.0.1)\n' \
           ' -host* : Update hosts\' IP addresses for teams. 2 addresses are required. (e.g. host 127.0.0.1,127.0.0.1)\n' \
+          ' -register* : Update registered team-list. (e.g. register hogehoge@gmail.com,teamA)\n' \
           ' -group* : Create a group and select teams to run the round-robin. (e.g. groupA teamA,teamB,teamC,...)\n' \
           ' -start group* : Start round-robon. (e.g. start groupA)\n' \
           ' -upload start : Add upload authorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
@@ -57,10 +58,13 @@ def getHelpMessageUnsupported():
 
 
 def getQualifiedTeams():
-    with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'r') as q_txt:
-        qualified_teams = q_txt.readlines()
-    for i in range(len(qualified_teams)):
-        qualified_teams[i] = qualified_teams[i].replace('\n', '').split(',')[0]
+    if os.path.exists('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH)):
+        with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'r') as q_txt:
+            qualified_teams = q_txt.readlines()
+        for i in range(len(qualified_teams)):
+            qualified_teams[i] = qualified_teams[i].replace('\n', '').split(',')[0]
+    else:
+        qualified_teams = []
     return qualified_teams
 
 
@@ -124,7 +128,7 @@ def overwriteYml(path, added_info):
         print('({}) {} is not exist'.format(overwriteYml.__name__, path))
         print('({}) create new yml file'.format(overwriteYml.__name__))
         yaml_conf = {'hosts': ['', ''],
-                     'log_dir': '',
+                     'log_dir': 'log',
                      'match_sleep': 2,
                      'mode': 'group',
                      'player_conf': 'config/rcssserver/player_official.conf'.format(TOURNAMENT_PATH),
@@ -179,7 +183,16 @@ def sendMessageToChannels(message, message_str, channels, default_id):
     message.body['channel'] = default_id
 
 
-class MyDropbox():
+def sendMessageToDiscordChannel(message_str):
+    p = subprocess.run(['python {}src/discordbot/run.py \'{}\''.format(COMPETITION_MANAGER_PATH, message_str)],
+                         stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE,
+                         shell=True)
+    if p.returncode == 0:
+        print('Send message to discord successfully.')
+
+
+class MyDropbox(object):
     def __init__(self, token, dir_path):
         self.DB_ACCESS_TOKEN = token
         self.DB_ROOT_DIR = dir_path
