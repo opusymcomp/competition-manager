@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../src/slackbot')
 from slackbot_settings import *
 import os
 from pydrive.auth import GoogleAuth

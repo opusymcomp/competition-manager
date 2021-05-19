@@ -12,7 +12,7 @@ async def on_ready():
 
 
 @client.event
-async def on_message(message):tatusgi
+async def on_message(message):
     if message.author.bot:
         await client.close()
 
