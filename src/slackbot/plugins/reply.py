@@ -6,7 +6,6 @@ import shutil
 from distutils.dir_util import copy_tree
 from slackbot.bot import respond_to
 from slackbot.bot import listen_to
-
 from plugins.utils import in_channel
 from slackbot_settings import *
 from plugins import tools as tl
@@ -17,6 +16,7 @@ from time import sleep
 bin_flag = False
 dbx_flag = False
 google_drive_flag = False
+discordbot_flag = False
 announce_flag = False
 game_flag = False
 
@@ -86,14 +86,26 @@ def listen_func(message):
     if ans_flag == 'help':
         message.reply(tl.getHelpMessageForOrganizers())
         return
+
     elif ans_flag == 'all':
+        if not os.path.exists('{}config/group.yml'.format(COMPETITION_MANAGER_PATH)):
+            msg = 'No group.yml. Please use \'group\' commands (e.g. groupA teamA,teamB,teamC).\n'
+            msg += tl.getHelpMessageForOrganizers()
+            message.reply(msg)
+            return
         group_yaml = tl.loadYml('{}config/group.yml'.format(COMPETITION_MANAGER_PATH))
         msg = ''
         for key, value in group_yaml.items():
             msg += key + '\n-' + ','.join(value) + '\n'
         message.send(msg)
         return
+
     elif ans_flag == 'specify':
+        if not os.path.exists('{}config/group.yml'.format(COMPETITION_MANAGER_PATH)):
+            msg = 'No group.yml. Please use \'group\' commands (e.g. groupA teamA,teamB,teamC).\n'
+            msg += tl.getHelpMessageForOrganizers()
+            message.reply(msg)
+            return
         group_yaml = tl.loadYml('{}config/group.yml'.format(COMPETITION_MANAGER_PATH))
         try:
             msg = setting[0] + '\n-' + ','.join(group_yaml[setting[0]]) + '\n'
@@ -101,6 +113,7 @@ def listen_func(message):
             msg = '{} is not registered'.format(setting[0])
         message.send(msg)
         return
+
     elif ans_flag == 'set':
         team_list = setting[1].split(',')
         qualified_teams = tl.getQualifiedTeams()
@@ -142,8 +155,12 @@ def listen_func(message):
         return
 
     elif ans_flag == 'status':
-        tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
-        msg = 'host' + '\n-' + ','.join(tournament_yml['hosts'])
+        if os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
+            tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+            msg = 'host\n-' + ','.join(tournament_yml['hosts'])
+        else:
+            msg = '{}config/tournament.yml is not exist. Please set hosts by \'host\' command (e.g. host 127.0.0.1,127.0.01)\n'.format(COMPETITION_MANAGER_PATH)
+            msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
         return
 
@@ -152,6 +169,7 @@ def listen_func(message):
         if len(host_list) == 2:
             host_yaml = {'hosts': host_list}
             tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), host_yaml)
+            tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), host_yaml)
             message.reply('hosts are updated')
         else:
             msg = 'The number of hosts must be 2'
@@ -177,8 +195,12 @@ def listen_func(message):
         return
 
     elif ans_flag == 'status':
-        tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
-        msg = 'server\n-' + tournament_yml['server']
+        if os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
+            tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+            msg = 'server\n-' + tournament_yml['server']
+        else:
+            msg = '{}config/tournament.yml is not exist. Please set server by \'server\' command (e.g. server 127.0.0.1)\n'.format(COMPETITION_MANAGER_PATH)
+            msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
         return
 
@@ -186,6 +208,7 @@ def listen_func(message):
         server = setting[1]
         server_yaml = {'server': server}
         tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), server_yaml)
+        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), server_yaml)
         message.reply('server is updated')
 
 
@@ -222,7 +245,7 @@ def cool_func(message):
                 msg = '\'{}\' is empty. Please create groups by \'group\' command before using this command.'.format(group)
                 message.reply(msg)
                 return
-            tournament_conf['log_dir'] = '{}/{}/'.format(dt_start, group)
+            tournament_conf['log_dir'] = '{}/{}'.format(dt_start, group)
             tournament_conf['teams'] = teams
         else:
             message.reply('{}config/tournament.yml does not exist. Please setup tournament settings by '
@@ -244,62 +267,65 @@ def cool_func(message):
                              message_str=msg,
                              channels=[original_channel_id, announce_channel_id],
                              default_id=original_channel_id)
+    if discordbot_flag:
+        tl.sendMessageToDiscordChannel(msg)
 
     game_flag = True
-    with open('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)) as fy_r:
-        conf = yaml.safe_load(fy_r)
+    conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
-    # if conf['mode'] == 'single_match':
-    #     for num_l in range(len(roundrobin) - 1):
-    #         for num_r in range(num_l + 1, len(roundrobin)):
-    #             dt_now_M = datetime.datetime.now().strftime('%Y%m%d%H%M')
+    """
+    if conf['mode'] == 'single_match':
+        for num_l in range(len(roundrobin) - 1):
+            for num_r in range(num_l + 1, len(roundrobin)):
+                dt_now_M = datetime.datetime.now().strftime('%Y%m%d%H%M')
 
-    #             matchteam = []
-    #             matchteam.append(roundrobin[num_l])
-    #             matchteam.append(roundrobin[num_r])
+                matchteam = []
+                matchteam.append(roundrobin[num_l])
+                matchteam.append(roundrobin[num_r])
 
-    #             # with open( '{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH) ) as fy_r:
-    #             #     conf = yaml.safe_load( fy_r )
-    #             conf['teams'] = matchteam
-    #             log_d = conf['log_dir'].split('/')
+                # with open( '{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH) ) as fy_r:
+                #     conf = yaml.safe_load( fy_r )
+                conf['teams'] = matchteam
+                log_d = conf['log_dir'].split('/')
 
-    #             # log/a/などの様に前後に空の要素が出来るときの処理
-    #             for i in range(log_d.count("")):
-    #                 log_d.remove("")
+                # log/a/などの様に前後に空の要素が出来るときの処理
+                for i in range(log_d.count("")):
+                    log_d.remove("")
 
-    #             conf['log_dir'] = ""
-    #             find_g = [s for s in log_d if "group" in s]
-    #             if len(find_g) > 0:
-    #                 for n in range(len(log_d)):
-    #                     if "group" in log_d[n]:
-    #                         break
-    #                     conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
-    #             else:
-    #                 for n in range(len(log_d)):
-    #                     conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
-    #             conf['log_dir'] = conf['log_dir'] + group + '/' + dt_now_M
+                conf['log_dir'] = ""
+                find_g = [s for s in log_d if "group" in s]
+                if len(find_g) > 0:
+                    for n in range(len(log_d)):
+                        if "group" in log_d[n]:
+                            break
+                        conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
+                else:
+                    for n in range(len(log_d)):
+                        conf['log_dir'] = conf['log_dir'] + log_d[n] + '/'
+                conf['log_dir'] = conf['log_dir'] + group + '/' + dt_now_M
 
-    #             with open('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), 'w') as fy_w:
-    #                 yaml.dump(conf, fy_w, default_flow_style=False)
-    #             msg = 'match start' + str(matchteam)
-    #             message.send(msg)
+                with open('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), 'w') as fy_w:
+                    yaml.dump(conf, fy_w, default_flow_style=False)
+                msg = 'match start' + str(matchteam)
+                message.send(msg)
 
-    #             subprocess.run([tournament_path + 'start.sh', '--config=' + config])
+                subprocess.run([tournament_path + 'start.sh', '--config=' + config])
 
-    #             # arg=[]
-    #             # arg.append(tournament_path)
-    #             # arg.append(conf['log_dir'])
-    #             # arg.extend(roundrobin)
-    #             # arg = " ".join(arg)
-    #             # result = subprocess.run( ['../gametools/results/result.sh', str(arg)] )
+                # arg=[]
+                # arg.append(tournament_path)
+                # arg.append(conf['log_dir'])
+                # arg.extend(roundrobin)
+                # arg = " ".join(arg)
+                # result = subprocess.run( ['../gametools/results/result.sh', str(arg)] )
 
-    #             rank = subprocess.run(['../gametools/results/rank.sh', str(group)], encoding='utf-8',
-    #                                   stdout=subprocess.PIPE)
-    #             print(rank.stdout)
-    #             # standing.main(group)
+                rank = subprocess.run(['../gametools/results/rank.sh', str(group)], encoding='utf-8',
+                                      stdout=subprocess.PIPE)
+                print(rank.stdout)
+                # standing.main(group)
 
-    #             msg = 'match finish' + str(matchteam)
-    #             message.send(msg)
+                msg = 'match finish' + str(matchteam)
+                message.send(msg)
+    """
 
     if conf['mode'] == 'group':
         # update tournament.yml
@@ -331,8 +357,8 @@ def cool_func(message):
         # copy the game log files
         os.makedirs(LOG_DIR, exist_ok=True)
         copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), LOG_DIR)
-        os.makedirs(LOG_DIR + 'archive/' + dt_start, exist_ok=True)
-        shutil.move('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}archive/{}'.format(LOG_DIR, dt_start))
+        os.makedirs(LOG_DIR + 'archive/', exist_ok=True)
+        shutil.move('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}archive'.format(LOG_DIR))
 
     else:
         msg = 'Illegal game mode \'{}\'.'.format(conf['mode'])
@@ -355,6 +381,8 @@ def cool_func(message):
                              message_str=msg,
                              channels=[original_channel_id, announce_channel_id],
                              default_id=original_channel_id)
+    if discordbot_flag:
+        tl.sendMessageToDiscordChannel(msg)
 
     game_flag = False
 
@@ -362,8 +390,14 @@ def cool_func(message):
 @listen_to(r'^announce match$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
-    with open('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)) as fy_r:
-        conf = yaml.safe_load(fy_r)
+    if not os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
+        msg = 'No tournament.yml. Please use \'server\', \'host\' and \'group\' commands before use this command.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+
     match_n = 0
 
     original_channel_id = message.body['channel']
@@ -373,8 +407,7 @@ def listen_func(message):
     global announce_flag
     announce_flag = True
     while game_flag:
-        with open('{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH)) as fr:
-            match_list = yaml.safe_load(fr)
+        match_list = tl.loadYml('{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH))
 
         tournament_log_dir = '{}{}/'.format(TOURNAMENT_PATH, conf['log_dir'])
         for n in os.listdir(tournament_log_dir):
@@ -427,6 +460,8 @@ def listen_func(message):
                                          message_str=msg,
                                          channels=[original_channel_id, announce_channel_id],
                                          default_id=original_channel_id)
+                if discordbot_flag:
+                    tl.sendMessageToDiscordChannel(msg)
 
             msg = 'match start\n' \
                   + match_list['match_' + str(match_n)]['team_l'] + ' vs ' \
@@ -435,6 +470,8 @@ def listen_func(message):
                                      message_str=msg,
                                      channels=[original_channel_id, announce_channel_id],
                                      default_id=original_channel_id)
+            if discordbot_flag:
+                tl.sendMessageToDiscordChannel(msg)
 
             progress_flag = False
         sleep(5)
@@ -456,8 +493,7 @@ def listen_func(message):
     group = txt_list[2]
     if len(txt_list) == 3 and 'group' in group:
         if os.path.exists('{}config/group.yml'.format(COMPETITION_MANAGER_PATH)):
-            with open('{}config/group.yml'.format(COMPETITION_MANAGER_PATH)) as fy_c:
-                groups_yml = yaml.safe_load(fy_c)
+            groups_yml = tl.loadYml('{}config/group.yml'.format(COMPETITION_MANAGER_PATH))
             if group in groups_yml.keys():
                 teams_in_group = groups_yml[group]
             else:
@@ -473,15 +509,15 @@ def listen_func(message):
         message.reply(msg)
         return
 
-    teams_in_group = {'teams': teams_in_group}
-
-    with open('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)) as fy_r:
-        conf = yaml.safe_load(fy_r)
+    tmp_setting = {'teams': teams_in_group,
+                   'log_dir': 'tmp'}
 
     # save as tmp yml in order to avoid overwriting the current tournament configuration
-    tl.overwriteYml('{}config/check_matches.yml'.format(COMPETITION_MANAGER_PATH), teams_in_group)
-    group_match_sim = tl.startSimulate('{}config/check_matches.yml'.format(COMPETITION_MANAGER_PATH))
-    os.remove('{}config/check_matches.yml'.format(COMPETITION_MANAGER_PATH))
+    tmp_yml_name = '{}config/check_matches.yml'.format(COMPETITION_MANAGER_PATH)
+    tl.overwriteYml(tmp_yml_name, tmp_setting)
+    group_match_sim = tl.startSimulate(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
+    tmp_yml = tl.loadYml(tmp_yml_name)
+    os.remove(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
 
     print(group_match_sim.stdout)
 
@@ -492,8 +528,8 @@ def listen_func(message):
             continue
         elif i > 1:
             mod_row = matches[i].split()
-            mod_row[1] = mod_row[1].replace(conf['teams_dir'], '')
-            mod_row[3] = mod_row[3].replace(conf['teams_dir'], '')
+            mod_row[1] = mod_row[1].replace(tmp_yml['teams_dir'] + '/', '')
+            mod_row[3] = mod_row[3].replace(tmp_yml['teams_dir'] + '/', '')
             matches[i] = " ".join(mod_row)
         msg += matches[i] + '\n'
 
@@ -503,6 +539,8 @@ def listen_func(message):
                              message_str=msg,
                              channels=[original_channel_id, announce_channel_id],
                              default_id=original_channel_id)
+    if discordbot_flag :
+        tl.sendMessageToDiscordChannel(msg)
 
 
 @listen_to(r'^dropbox\w*')
@@ -550,12 +588,33 @@ def listen_func(message):
         message.reply(msg)
 
 
+@listen_to(r'^discordbot\w*')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def listen_func(message):
+    txt_list = message.body['text'].split()
+    if len(txt_list) == 2:
+        global discordbot_flag
+        if txt_list[1] == 'false':
+            discordbot_flag = False
+            message.reply('discordbot_flag is changed to false.')
+        elif txt_list[1] == 'true':
+            discordbot_flag = True
+            message.reply('discordbot_flag is changed to true.')
+        else:
+            msg = tl.getHelpMessageForOrganizers()
+            message.reply(msg)
+    else:
+        msg = tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+
+
 @listen_to(r'^status$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
     global bin_flag
     global dbx_flag
     global google_drive_flag
+    global discordbot_flag
     global game_flag
     global announce_flag
 
@@ -563,8 +622,10 @@ def listen_func(message):
           ' -bin_flag: {}\n' \
           ' -dropbox_flag: {}\n' \
           ' -google_drive_flag: {}\n' \
+          ' -discordbot flag: {}\n' \
           ' -game_flag: {}\n' \
-          ' -announce_flag: {}\n'.format(bin_flag, dbx_flag, google_drive_flag, game_flag, announce_flag)
+          ' -announce_flag: {}\n'.format(bin_flag, dbx_flag, google_drive_flag,
+                                         discordbot_flag, game_flag, announce_flag)
     message.reply(msg)
 
 
@@ -572,6 +633,14 @@ def listen_func(message):
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
     global bin_flag
+
+    yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
+    if not os.path.exists(yml_name):
+        msg = 'No qualification_test.yml. Please use \'server\', \'host\' and \'group\' commands before use this command.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
     bin_flag = True
     print('bin_flag', bin_flag)
     msg = 'binary upload start'
@@ -592,7 +661,7 @@ def listen_func(message):
     qualified_teams = tl.getQualifiedTeams()
     for q_team in qualified_teams:
         team_path = os.environ['HOME'] + '/' + q_team + '.tar.gz'
-        archive_team_dir = '{}{}/{}/'.format(TEAMS_DIR, archived_time, q_team)
+        archive_team_dir = '{}{}/'.format(TEAMS_DIR, archived_time)
         os.makedirs(archive_team_dir, exist_ok=True)
         shutil.copy2(team_path, archive_team_dir)
 
@@ -641,14 +710,10 @@ def listen_func(message):
         yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
         log_dir = "log/" + t_team + '/' + time
 
-        with open(yml_name) as fy_r:
-            conf = yaml.safe_load(fy_r)
-
+        conf = tl.loadYml(yml_name)
         conf['log_dir'] = log_dir
         conf['teams'] = [t_team, 'agent2d']
-
-        with open('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), 'w') as fy_w:
-            yaml.dump(conf, fy_w, default_flow_style=False)
+        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), conf)
 
         message.send(t_team + ' test start')
         _ = tl.startGame(yml_name)
@@ -697,7 +762,6 @@ def file_download(message):
             if line[0] == '#':
                 continue
             l_mail, l_team = line.strip().split(',')
-            print(l_mail, l_team)
             if l_mail == email and l_team == teamname:
                 list_flag = True
                 # break
@@ -712,12 +776,12 @@ def file_download(message):
     if not list_flag:
         if only_team_flag:
             msg = 'Only the team leader can upload team binary.'
-            message.reply(msg)
-            return
-        if only_mail_flag:
+        elif only_mail_flag:
             msg = 'Your team name may be \'{}\', not \'{}\''.format(tmp_team, teamname)
-            message.reply(msg)
-            return
+        else:
+            msg = 'Your team is not resistered. Please ask organizers.'
+        message.reply(msg)
+        return
 
     is_first_comment = False
     global game_flag
@@ -736,7 +800,7 @@ def file_download(message):
         msg = 'Sorry for late testing. Your binary test starts soon.'
         message.reply(msg)
 
-    teamdir = os.environ['HOME'] + '/' + teamname
+    # teamdir = os.environ['HOME'] + '/' + teamname
     # temporary place in order to avoid illegal upload
     temporary_dir = COMPETITION_MANAGER_PATH + 'uploaded_team/'
     os.makedirs(temporary_dir, exist_ok=True)
@@ -787,15 +851,15 @@ def file_download(message):
 
     extract = subprocess.run(['{}/test/extend.sh'.format(COMPETITION_MANAGER_PATH),
                               filename,
-                              os.environ['HOME'],
+                              temporary_dir,
                               COMPETITION_MANAGER_PATH], encoding='utf-8', stdout=subprocess.PIPE)
     if 'Error is not recoverable' in extract.stdout:
         message.reply("Uploaded file cannot be extracted. Please check the contents of the uploaded file.")
         game_flag = False
         return
 
-    if os.path.isdir(teamdir):
-        teamfiles = os.listdir(teamdir)
+    if os.path.isdir(temporary_dir):
+        teamfiles = os.listdir('{}{}'.format(temporary_dir, teamname))
         if "start" not in teamfiles:
             message.reply("There is no \'start\' script in your file.")
             game_flag = False
@@ -806,10 +870,10 @@ def file_download(message):
             return
         if "team.yml" not in teamfiles:
             ty_dict = {"country": teamname}
-            with open(teamdir + "/team.yml", 'w') as ty_w:
-                yaml.dump(ty_dict, ty_w, default_flow_style=False)
+            tl.saveYml(ty_dict, '{}{}/team.yml'.format(temporary_dir, teamname))
+
         for excecuted in teamfiles:
-            os.chmod(teamdir + "/" + excecuted, 0o777)
+            os.chmod(temporary_dir + teamname + '/' + excecuted, 0o777)
     else:
         message.reply(
             "The structure of team directory is wrong or the name of team directory is different from \'{}\'".format(teamname)
@@ -817,25 +881,24 @@ def file_download(message):
         game_flag = False
         return
 
-    shutil.copy2(COMPETITION_MANAGER_PATH + 'uploaded_team/{}.tar.gz'.format(teamname), os.environ['HOME'])
-    os.remove(COMPETITION_MANAGER_PATH + 'uploaded_team/{}.tar.gz'.format(teamname))
+    shutil.copy2('{}{}.tar.gz'.format(temporary_dir, teamname), os.environ['HOME'])
+    copy_tree('{}{}'.format(temporary_dir, teamname), '{}/{}'.format(os.environ['HOME'], teamname))
+    os.remove('{}{}.tar.gz'.format(temporary_dir, teamname))
 
     message.reply('Binary test start (please wait approx. 2 min.)')
 
     upload_time= datetime.datetime.now().strftime('%Y%m%d%H%M')
-    yml_name = '{}/config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
+    yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
     log_dir = "log/" + teamname + "/" + upload_time
 
-    with open(yml_name) as fy_r:
-        tournament_conf = yaml.safe_load(fy_r)
+    tournament_conf = tl.loadYml(yml_name)
 
     # update qualification_test.yml
     tournament_conf['log_dir'] = log_dir
     tournament_conf['teams_dir'] = os.environ['HOME']
     tournament_conf['teams'] = [teamname, 'agent2d']
-
-    with open(yml_name, 'w') as fy_w:
-        yaml.dump(tournament_conf, fy_w, default_flow_style=False)
+    tournament_conf['server_conf'] = 'config/rcssserver/server_test.conf'
+    tl.overwriteYml(yml_name, tournament_conf)
 
     result_game = tl.startGame(yml_name)
     print(result_game.stdout)
@@ -853,7 +916,7 @@ def file_download(message):
                                  message.body['channel'])
 
     discon_index = result_analyze.stdout.find('DisconnectedPlayer')
-    discon_p = result_analyze.stdout[discon_index + len('DisconnectedPlayer'):].split('\n')
+    discon_p = result_analyze.stdout[discon_index + len('DisconnectedPlayer'):].replace('\n', '')
     print('discon_p', discon_p)
 
     # save the succeeded team_name to qualification.txt
@@ -915,8 +978,36 @@ def file_download(message):
 def file_download(message):
     qualification_path = '{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH)
     if os.path.exists(qualification_path):
-        with open(qualification_path, 'w') as q_txt:
+        with open(qualification_path, 'w') as _:
             pass
+
+    maillist_path = '{}config/maillist.txt'.format(COMPETITION_MANAGER_PATH)
+    if os.path.exists(maillist_path):
+        with open(maillist_path, 'w') as m_txt:
+            m_txt.write('hogehoge@gmail.com,teamname1\nfugafuga@gmail.com,teamname2\n')
+
+    message.reply('setting files are cleared.')
+
+
+@listen_to('^register \S+$')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def register_team(message):
+    body_txt = message.body['text']
+    splitted_body_txt = body_txt.split()[-1].split(',')
+
+    if len(splitted_body_txt) != 2:
+        msg = tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    # remove link
+    if '<mailto:' in splitted_body_txt[0]:
+        splitted_body_txt[0] = splitted_body_txt[0].split('|')[-1].replace('>', '')
+
+    maillist_path = '{}config/maillist.txt'.format(COMPETITION_MANAGER_PATH)
+    with open(maillist_path, 'a') as m_txt:
+        m_txt.write(','.join(splitted_body_txt)+'\n')
+    message.reply('{},{} are registered in maillist.txt'.format(splitted_body_txt[0], splitted_body_txt[1]))
 
 
 @listen_to('^share \w+$')

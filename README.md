@@ -33,18 +33,19 @@ $ pip install gspread
 $ pip install oauth2client
 $ pip install pyyaml
 $ pip install pydrive
+$ pip install discord.py
 ```
 
 ## Setting
 
 ### slackbotの設定
-まず[Slack](https://slack.com/get-started#/create)のアカウントを作成する．
+まず [Slack](https://slack.com/get-started#/create) のアカウントを作成する．
 
-次に，[Slackbot](https://my.slack.com/services/new/bot)を作成する.
+次に，[Slackbot](https://my.slack.com/services/new/bot) を作成する.
 
 その後，APIトークンを作成し，次のファイルに記入する．
 ```
-competition-manager/slackserver/slackbot/slackbot_settings.py
+competition-manager/src/slackbot/slackbot_settings.py
 ```
 最後に，Slackbotをチャンネル（e.g. #general）に追加する．
 
@@ -60,21 +61,28 @@ competition-manager/test/autotest.sh
 competition-manager/config/manager.yml
 ```
 
-### tournamentの設定
-toolでインストールしたtournamentの設定を行う．以下のファイルを作成・編集する．
+[comment]: <> (### tournamentの設定)
 
-- confファイルの設定
-  - 次の行を試合設定によって変更する．
-```
-player_conf: config/rcssserver/player_official.conf
-server_conf: config/rcssserver/server_official.conf
-```
+[comment]: <> (toolでインストールしたtournamentの設定を行う．以下のファイルを作成・編集する．)
+
+[comment]: <> (- confファイルの設定)
+
+[comment]: <> (  - 次の行を試合設定によって変更する．)
+
+[comment]: <> (```)
+
+[comment]: <> (player_conf: config/rcssserver/player_official.conf)
+
+[comment]: <> (server_conf: config/rcssserver/server_official.conf)
+
+[comment]: <> (```)
 
 ### resultsの設定
 tournamentの設定でmode_groupを使用する場合は必要なし
+
 tournamentの設定でmode_single_matchを使用する場合
 - google spreadsheetの設定jsonファイルを設置
-- competition-manager/slackserver/gametools/resultsにあるggssapi_gameresult.pyとstanding.pyの設定jsonファイルへのパスとドキュメントIDを設定
+- competition-manager/src/gametools/resultsにあるggssapi_gameresult.pyとstanding.pyの設定jsonファイルへのパスとドキュメントIDを設定
 ```
 path='to/json/path.json'
 doc_id='[document_id]'
@@ -86,8 +94,8 @@ https://docs.google.com/spreadsheets/d/[document_id]/edit#gid=0
 
 
 ### GoogleDriveアップロードの設定
-OAuthクライアントIDを取得する．
-- [参考]（https://qiita.com/akabei/items/f25e4f79dd7c2f754f0e）
+OAuthクライアントIDを取得する
+- [参考](https://qiita.com/akabei/items/f25e4f79dd7c2f754f0e)
 
 クライアントID，クライアントシークレットを以下のファイルに記入
 ```
@@ -113,7 +121,7 @@ competition-manager/config/maillist.txt
 
 ## Usage
 ```
-$ cd autogame/slackserver/slackbot
+$ cd compatition-manager/src/slackbot
 $ python ./run.py
 ```
 このコマンド後は，slack上で操作
@@ -169,7 +177,10 @@ gdrive true (or false)
 ```
 share teams (or logs)
 ```
-
+- Discord Botとの連携．Discordにも発言させる．
+```
+discordbot true (or false)
+```
 
 # Participants
 [画像付きマニュアル](https://docs.google.com/document/d/1MCK7K-u6vaTPXFklca4m6ZYC2Izul3Cr4Psi4NJtS-Y/edit#)
@@ -202,7 +213,7 @@ config_dir="formation-dt"
 coach_config="coach.conf"
 ```
   5. ~/直下にチームディレクトリを配置して起動するか確認する
-  6. 起動が確認できたら.tar.gz形式に圧縮する．上の部分で決定したチームネームの名前にする．
+  6. 起動が確認でき``たら.tar.gz形式に圧縮する．上の部分で決定したチームネームの名前にする．
 
 チームディレクトリの例
 ```
@@ -218,7 +229,7 @@ Example_team
 └── start.sh (起動確認用)
 ```
 
-※参考：[librcsc](http://rctools.osdn.jp/pukiwiki/index.php?librcsc)の指定位置へインストールする場合
+※参考：[librcsc](http://rctools.osdn.jp/pukiwiki/index.php?librcsc) の指定位置へインストールする場合
 
 - アップロード
   1. チームアップロードの準備ができているか確認
@@ -233,6 +244,6 @@ Example_team
 	 - 一度に何度も送らないようにする
 	 - 1チームずつ行う
   4. test完了メッセージを待つ
-  5. test completeと表示されれば完了
+  5. Binary test succeededと表示されれば完了
  	 - その他のメッセージが表示されて中止された場合，バイナリを確認してやり直す
 	 - わからない場合は運営に確認する

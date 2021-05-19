@@ -10,6 +10,8 @@ dropbox_boot_dir: /testlog
 google_drive_client_id: [client_id]
 google_drive_client_secret: [client_secret]
 google_drive_folder_id: [folder_id]
+discord_token: [discord_token]
+discord_channel_id: [channel_id]
 
 # slack options
 organizer_channel_name: [organizer_ch]
