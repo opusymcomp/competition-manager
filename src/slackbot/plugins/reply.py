@@ -354,6 +354,9 @@ def cool_func(message):
         # start game
         _ = tl.startGame('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
+        # wait for sending match-end message
+        sleep(10)
+
         # copy the game log files
         os.makedirs(LOG_DIR, exist_ok=True)
         copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), LOG_DIR)
@@ -397,6 +400,8 @@ def listen_func(message):
         return
 
     conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+    tournament_log_dir = '{}{}/'.format(TOURNAMENT_PATH, conf['log_dir'])
+    match_dict = tl.loadYml('{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH))
 
     match_n = 0
 
@@ -407,25 +412,19 @@ def listen_func(message):
     global announce_flag
     announce_flag = True
     while game_flag:
-        match_list = tl.loadYml('{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH))
-
-        tournament_log_dir = '{}{}/'.format(TOURNAMENT_PATH, conf['log_dir'])
-        for n in os.listdir(tournament_log_dir):
-            if 'match' in n:
-                num = n[len('match_'):]
-                if match_n < int(num):
-                    match_n = int(num)
-                    progress_flag = True
+        if os.path.exists(tournament_log_dir):
+            for n in os.listdir(tournament_log_dir):
+                if 'match' in n:
+                    num = n[len('match_'):]
+                    if match_n < int(num):
+                        match_n = int(num)
+                        progress_flag = True
 
         if progress_flag:
             pre_match = match_n - 1
 
             if pre_match >= 1:
-                with open('{}results.log'.format(tournament_log_dir), 'r') as r_log:
-                    log_lines = r_log.readlines()
-                header = log_lines[0].split(',')
-                elm = log_lines[-1].split(',')
-                result_line_dict = {header[i].strip(): elm[i].strip() for i in range(len(header))}
+                result_dict = tl.getResults('{}results.log'.format(tournament_log_dir))
 
                 if dbx_flag:
                     for dir_n in conf['log_dir'].split('/'):
@@ -446,11 +445,7 @@ def listen_func(message):
                     gdrive = tl.MyGoogleDrive()
                     gdrive.upload(LOG_DIR)
 
-                msg = 'match end\n' \
-                      + match_list['match_' + str(pre_match)]['team_l'] + '_' \
-                      + result_line_dict['left score'] + ' vs ' \
-                      + result_line_dict['right score'] + '_' \
-                      + match_list['match_' + str(pre_match)]['team_r']
+                msg = 'match end\n' + tl.getMatchResultMessage(match_dict, result_dict, pre_match)
                 if dbx_flag:
                     msg += '\n' + db_link
                 if google_drive_flag:
@@ -463,9 +458,8 @@ def listen_func(message):
                 if discordbot_flag:
                     tl.sendMessageToDiscordChannel(msg)
 
-            msg = 'match start\n' \
-                  + match_list['match_' + str(match_n)]['team_l'] + ' vs ' \
-                  + match_list['match_' + str(match_n)]['team_r']
+            msg = 'match start\n' + tl.getMatchStartMessage(match_dict, match_n)
+
             tl.sendMessageToChannels(message=message,
                                      message_str=msg,
                                      channels=[original_channel_id, announce_channel_id],
@@ -475,15 +469,44 @@ def listen_func(message):
 
             progress_flag = False
         sleep(5)
+
+    # send result of the final match
+    # TODO: functionize the same process
+    result_dict = tl.getResults('{}results.log'.format(tournament_log_dir))
+
+    if dbx_flag:
+        for dir_n in conf['log_dir'].split('/'):
+            if 'group' in dir_n:
+                group = dir_n
+        match_dir = tournament_log_dir + '/match_' + str(match_dict['max_match'])
+        db_match_dir = DROPBOX_BOOT_DIR + '/' + group + '/match_' + str(match_dict['max_match'])
+        db = tl.MyDropbox(DROPBOX_ACCESS_TOKEN, db_match_dir)
+        db.createFolder(db_match_dir)
+        for match_file in os.listdir(match_dir):
+            # if os.path.getsize( match_dir + '/' + match_file ) != 0:
+            with open(match_dir + '/' + match_file, 'rb') as m_f:
+                f_body = m_f.read()
+            db.uploadFiles(f_body, match_file)
+        db_link = db.get_shared_link(db_match_dir)
+
+    if google_drive_flag:
+        gdrive = tl.MyGoogleDrive()
+        gdrive.upload(LOG_DIR)
+
+    msg = 'match end\n' + tl.getMatchResultMessage(match_dict, result_dict, match_dict['max_match'])
+    if dbx_flag:
+        msg += '\n' + db_link
+    if google_drive_flag:
+        msg += '\n https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
+
+    tl.sendMessageToChannels(message=message,
+                             message_str=msg,
+                             channels=[original_channel_id, announce_channel_id],
+                             default_id=original_channel_id)
+    if discordbot_flag:
+        tl.sendMessageToDiscordChannel(msg)
+
     announce_flag = False
-    # if match_n == match_list['max_match']:
-    #     if os.path.exists( tournament_path + conf['log_dir'] +'/match_'+ str(match_n) +'/match.yml' ):
-    #         message.send(
-    #             'match end '
-    #             + match_list[ 'match_' + str(match_n) ]['team_l']
-    #             + 'vs'
-    #             + match_list[ 'match_' + str(match_n) ]['team_r']
-    #        )
 
 
 @listen_to(r'^check matches \w+')
@@ -1026,5 +1049,16 @@ def file_upload(message):
     gdrive = tl.MyGoogleDrive()
     upload_target = LOG_DIR if txt[-1] == 'logs' else TEAMS_DIR
     gdrive.upload(upload_target)
-    message.reply('upload to https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID))
+
+    msg = 'upload to https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
+
+    original_channel_id = message.body['channel']
+    announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
+
+    tl.sendMessageToChannels(message=message,
+                             message_str=msg,
+                             channels=[original_channel_id, announce_channel_id],
+                             default_id=original_channel_id)
+    if discordbot_flag:
+        tl.sendMessageToDiscordChannel(message_str=msg)
 

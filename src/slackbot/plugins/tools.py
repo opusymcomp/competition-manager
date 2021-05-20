@@ -38,6 +38,7 @@ def getHelpMessageForOrganizers():
           ' -check matches: Simulate the group matches and announce the schedule\n' \
           ' -dropbox* : Switch dropbox flag whether dropbox will be used or not. (e.g. dropbox true)\n' \
           ' -gdrive* : Switch google_drive flag whether google_drive will be used or not. (e.g. gdrive true)\n' \
+          ' -discordbot* : Switch discordbot flag whether discord_bot will be used or not. (e.g. discordbot true)\n' \
           ' -share* : Send files to the Cloud storage. Choose \'teams\' or \'logs\' as an argument (e.g. share teams)\n'
     return msg
 
@@ -173,6 +174,28 @@ def getTeamsInGroup(group):
         if group in group_yaml.keys():
             teams_in_group = group_yaml[group]
     return teams_in_group
+
+
+def getResults(result_file):
+    with open(result_file, 'r') as r_log:
+        log_lines = r_log.readlines()
+    header = log_lines[0].split(',')
+    elm = log_lines[-1].split(',')
+    return {header[i].strip(): elm[i].strip() for i in range(len(header))}
+
+
+def getMatchStartMessage(match_dict, focused_game_id):
+    msg = match_dict['match_' + str(focused_game_id)]['team_l'] + ' vs ' \
+          + match_dict['match_' + str(focused_game_id)]['team_r']
+    return msg
+
+
+def getMatchResultMessage(match_dict, result_dict, focused_game_id):
+    msg = match_dict['match_' + str(focused_game_id)]['team_l'] + '_' \
+          + result_dict['left score'] + ' vs ' \
+          + result_dict['right score'] + '_' \
+          + match_dict['match_' + str(focused_game_id)]['team_r']
+    return msg
 
 
 def sendMessageToChannels(message, message_str, channels, default_id):
