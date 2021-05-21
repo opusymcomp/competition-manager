@@ -442,7 +442,7 @@ def listen_func(message):
 
                 if google_drive_flag:
                     gdrive = tl.MyGoogleDrive()
-                    gdrive.upload(tournament_log_dir+match_dir, prefix=group)
+                    gdrive.upload(tournament_log_dir+match_dir, prefix='logs/'+group)
 
                 msg = 'match end\n' + tl.getMatchResultMessage(match_dict, result_dict, pre_match)
                 if dbx_flag:
@@ -490,7 +490,7 @@ def listen_func(message):
 
     if google_drive_flag:
         gdrive = tl.MyGoogleDrive()
-        gdrive.upload(tournament_log_dir+match_dir, prefix=group)
+        gdrive.upload(tournament_log_dir+match_dir, prefix='logs/'+group)
 
     msg = 'match end\n' + tl.getMatchResultMessage(match_dict, result_dict, match_dict['max_match'])
     if dbx_flag:
