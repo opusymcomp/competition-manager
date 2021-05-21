@@ -259,7 +259,6 @@ def cool_func(message):
 
     msg = 'The ' + group + ' starts soon \n Start time : ' + dt_start + '\n I will notify you when the game ' \
                                                                         'finished.\n '
-    message.reply(msg)
     message.react('+1')
     original_channel_id = message.body['channel']
     announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
@@ -354,15 +353,6 @@ def cool_func(message):
         # start game
         _ = tl.startGame('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
-        # wait for sending match-end message
-        sleep(10)
-
-        # copy the game log files
-        os.makedirs(LOG_DIR, exist_ok=True)
-        copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), LOG_DIR)
-        os.makedirs(LOG_DIR + 'archive/', exist_ok=True)
-        shutil.move('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}archive'.format(LOG_DIR))
-
     else:
         msg = 'Illegal game mode \'{}\'.'.format(conf['mode'])
         message.reply(msg)
@@ -376,9 +366,20 @@ def cool_func(message):
         msg += '\n' + db_g_link
 
     if google_drive_flag:
-        gdrive = tl.MyGoogleDrive()
-        gdrive.upload(LOG_DIR)
         msg += '\n https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
+
+    game_flag = False
+
+    # wait for finishing announce
+    while True:
+        if not announce_flag:
+            break
+
+    # copy the game log files
+    os.makedirs(LOG_DIR, exist_ok=True)
+    copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), LOG_DIR)
+    os.makedirs(LOG_DIR + 'archive/', exist_ok=True)
+    shutil.move('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}archive'.format(LOG_DIR))
 
     tl.sendMessageToChannels(message=message,
                              message_str=msg,
@@ -386,8 +387,6 @@ def cool_func(message):
                              default_id=original_channel_id)
     if discordbot_flag:
         tl.sendMessageToDiscordChannel(msg)
-
-    game_flag = False
 
 
 @listen_to(r'^announce match$')
@@ -426,24 +425,24 @@ def listen_func(message):
             if pre_match >= 1:
                 result_dict = tl.getResults('{}results.log'.format(tournament_log_dir))
 
+                group = conf['log_dir'].split('/')[-1]
+                match_dir = 'match_' + str(pre_match)
+
                 if dbx_flag:
-                    for dir_n in conf['log_dir'].split('/'):
-                        if 'group' in dir_n:
-                            group = dir_n
-                    match_dir = tournament_log_dir + '/match_' + str(pre_match)
-                    db_match_dir = DROPBOX_BOOT_DIR + '/' + group + '/match_' + str(pre_match)
+                    tournament_match_dir = tournament_log_dir + match_dir
+                    db_match_dir = DROPBOX_BOOT_DIR + '/' + group + '/' + match_dir
                     db = tl.MyDropbox(DROPBOX_ACCESS_TOKEN, db_match_dir)
                     db.createFolder(db_match_dir)
-                    for match_file in os.listdir(match_dir):
+                    for match_file in os.listdir(tournament_match_dir):
                         # if os.path.getsize( match_dir + '/' + match_file ) != 0:
-                        with open(match_dir + '/' + match_file, 'rb') as m_f:
+                        with open(tournament_match_dir + '/' + match_file, 'rb') as m_f:
                             f_body = m_f.read()
                         db.uploadFiles(f_body, match_file)
                     db_link = db.get_shared_link(db_match_dir)
 
                 if google_drive_flag:
                     gdrive = tl.MyGoogleDrive()
-                    gdrive.upload(LOG_DIR)
+                    gdrive.upload(tournament_log_dir+match_dir, prefix=group)
 
                 msg = 'match end\n' + tl.getMatchResultMessage(match_dict, result_dict, pre_match)
                 if dbx_flag:
@@ -474,16 +473,16 @@ def listen_func(message):
     # TODO: functionize the same process
     result_dict = tl.getResults('{}results.log'.format(tournament_log_dir))
 
+    group = conf['log_dir'].split('/')[-1]
+    match_dir = 'match_' + str(match_dict['max_match'])
+
     if dbx_flag:
-        for dir_n in conf['log_dir'].split('/'):
-            if 'group' in dir_n:
-                group = dir_n
-        match_dir = tournament_log_dir + '/match_' + str(match_dict['max_match'])
-        db_match_dir = DROPBOX_BOOT_DIR + '/' + group + '/match_' + str(match_dict['max_match'])
+        tournament_match_dir = tournament_log_dir + match_dir
+        db_match_dir = DROPBOX_BOOT_DIR + '/' + group + '/' + match_dir
         db = tl.MyDropbox(DROPBOX_ACCESS_TOKEN, db_match_dir)
         db.createFolder(db_match_dir)
-        for match_file in os.listdir(match_dir):
-            # if os.path.getsize( match_dir + '/' + match_file ) != 0:
+        for match_file in os.listdir(tournament_match_dir):
+            # if os.path.getsize( tournament_match_dir + '/' + match_file ) != 0:
             with open(match_dir + '/' + match_file, 'rb') as m_f:
                 f_body = m_f.read()
             db.uploadFiles(f_body, match_file)
@@ -491,7 +490,7 @@ def listen_func(message):
 
     if google_drive_flag:
         gdrive = tl.MyGoogleDrive()
-        gdrive.upload(LOG_DIR)
+        gdrive.upload(tournament_log_dir+match_dir, prefix=group)
 
     msg = 'match end\n' + tl.getMatchResultMessage(match_dict, result_dict, match_dict['max_match'])
     if dbx_flag:
@@ -910,7 +909,7 @@ def file_download(message):
 
     message.reply('Binary test start (please wait approx. 2 min.)')
 
-    upload_time= datetime.datetime.now().strftime('%Y%m%d%H%M')
+    upload_time = datetime.datetime.now().strftime('%Y%m%d%H%M')
     yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
     log_dir = "log/" + teamname + "/" + upload_time
 
@@ -1039,6 +1038,7 @@ def file_upload(message):
     if not google_drive_flag:
         msg = 'google_drive flag is False. Please use after google_drive_flag True by using \'gdrive\' command.'
         message.reply(msg)
+        return
 
     txt = message.body['text'].split()
     if len(txt) != 2 or (txt[-1] != 'logs' and txt[-1] != 'teams'):
@@ -1050,7 +1050,7 @@ def file_upload(message):
     upload_target = LOG_DIR if txt[-1] == 'logs' else TEAMS_DIR
     gdrive.upload(upload_target)
 
-    msg = 'upload to https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
+    msg = 'upload \'{}\' to https://drive.google.com/drive/folders/{}'.format(txt[-1], GOOGLE_DRIVE_FOLDER_ID)
 
     original_channel_id = message.body['channel']
     announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
