@@ -324,13 +324,22 @@ class MyGoogleDrive(object):
 
         os.chdir(current_dir)
 
-    def upload(self, path):
+    def upload(self, path, prefix=None):
         if len(path) != 0 and path[-1] == '/':
             local_data_path = path[:-1]
         else:
             local_data_path = path
 
-        t_folder = self.__createDir(GOOGLE_DRIVE_FOLDER_ID, os.path.basename(local_data_path))
+        if not prefix:
+            t_folder = self.__createDir(GOOGLE_DRIVE_FOLDER_ID, os.path.basename(local_data_path))
+        else:
+            splitted_prefix = prefix.split('/')
+            for i, p in enumerate(splitted_prefix):
+                if i == 0:
+                    t_folder = self.__createDir(GOOGLE_DRIVE_FOLDER_ID, p)
+                else:
+                    t_folder = self.__createDir(t_folder['id'], p)
+            t_folder = self.__createDir(t_folder['id'], os.path.basename(local_data_path))
         self.__upload_recursive(t_folder, local_data_path)
 
     def __upload_recursive(self, parent_directory, path):
