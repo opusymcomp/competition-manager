@@ -150,8 +150,8 @@ announce match
 ```
 - slackbotにDMでバイナリ受け入れ開始コマンドを送信
 ```
-upload start
-upload end
+binary upload start
+binary upload end
 ```
 - バイナリテスト完了チームリストの初期化
 ```
@@ -237,8 +237,8 @@ Example_team
  	 - チーム名 team2020 の場合
 	 /team2020 /team2020.tar.gz
   3. Slackのサイドバー"App"からCompetition-Manager(bot)を選択し，ダイ
-  レクトメッセージで"bin [teamname]"を入力&バイナリ添付
- 	 - チーム名がagent2dの場合，"bin agent2d"
+  レクトメッセージで"upload [teamname]"を入力&バイナリ添付
+ 	 - チーム名がagent2dの場合，"upload agent2d"
 	 - 添付時，アップロードが完了するまで待つ
 	   - 容量が大きい場合はアップロード完了してからも10秒程待つ
 	 - 一度に何度も送らないようにする
