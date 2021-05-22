@@ -14,6 +14,7 @@ from plugins import bin_download as dl
 from time import sleep
 
 bin_flag = False
+bin_test_que = []
 dbx_flag = False
 google_drive_flag = False
 discordbot_flag = False
@@ -159,7 +160,7 @@ def listen_func(message):
             tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
             msg = 'host\n-' + ','.join(tournament_yml['hosts'])
         else:
-            msg = '{}config/tournament.yml is not exist. Please set hosts by \'host\' command (e.g. host 127.0.0.1,127.0.01)\n'.format(COMPETITION_MANAGER_PATH)
+            msg = '{}config/tournament.yml is not exist. Please set hosts by \'host\' command (e.g. host 127.0.0.1,127.0.0.1)\n'.format(COMPETITION_MANAGER_PATH)
             msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
         return
@@ -221,7 +222,7 @@ def cool_func(message):
         return
 
     if bin_flag:
-        message.reply('Binary upload must be prohibit. \'upload end\'')
+        message.reply('Binary upload must be prohibit by the command \'binary upload end\'.')
         return
 
     # startgroup = message.body['text']
@@ -651,7 +652,7 @@ def listen_func(message):
     message.reply(msg)
 
 
-@listen_to(r'^upload start$')
+@listen_to(r'^binary upload start$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
     global bin_flag
@@ -665,11 +666,17 @@ def listen_func(message):
 
     bin_flag = True
     print('bin_flag', bin_flag)
-    msg = 'binary upload start'
-    message.reply(msg)
+    msg = 'Team leaders can upload team binary now.'
+
+    original_channel_id = message.body['channel']
+    announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
+    tl.sendMessageToChannels(message=message,
+                             message_str=msg,
+                             channels=[original_channel_id, announce_channel_id],
+                             default_id=original_channel_id)
 
 
-@listen_to(r'^upload end$')
+@listen_to(r'^binary upload end$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
     global bin_flag
@@ -678,6 +685,7 @@ def listen_func(message):
 
     archived_time = datetime.datetime.now().strftime('%Y%m%d')
     msg = 'binary upload end.\n Current teams will be archived on {}{}'.format(TEAMS_DIR, archived_time)
+    message.reply(msg)
 
     # save pre-uploaded binary
     qualified_teams = tl.getQualifiedTeams()
@@ -687,7 +695,13 @@ def listen_func(message):
         os.makedirs(archive_team_dir, exist_ok=True)
         shutil.copy2(team_path, archive_team_dir)
 
-    message.reply(msg)
+    original_channel_id = message.body['channel']
+    announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
+    msg = 'Team binaries cannot be uploaded now.'
+    tl.sendMessageToChannels(message=message,
+                             message_str=msg,
+                             channels=[original_channel_id, announce_channel_id],
+                             default_id=original_channel_id)
 
 
 @listen_to(r'^test\w*')
@@ -758,12 +772,11 @@ def listen_func(message):
     message.reply(msg)
 
 
-@respond_to('^bin \w+')
+@respond_to('^upload \w+')
 def file_download(message):
     userid = message.body['user']
     email = message.channel._client.users[userid]['profile']['email']
-    teamname = message.body['text']
-    teamname = ''.join(teamname[4:])
+    teamname = message.body['text'].split()[-1]
 
     original_channel_id = message.body['channel']
     organizer_channel_id = tl.getChannelID(message, ORGANIZER_CHANNEL_NAME)
@@ -805,6 +818,13 @@ def file_download(message):
         message.reply(msg)
         return
 
+    global bin_test_que
+    if teamname in bin_test_que:
+        msg = 'Your team is already in binary-test que.'
+        message.reply(msg)
+        return
+    bin_test_que.append(teamname)
+
     is_first_comment = False
     global game_flag
     while True:
@@ -843,31 +863,47 @@ def file_download(message):
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
+            bin_test_que.remove(teamname)
             game_flag = False
             return
-        msg = 'Binary upload succeeded.'
-        tl.sendMessageToChannels(message=message,
-                                 message_str=msg,
-                                 channels=[original_channel_id, organizer_channel_id],
-                                 default_id=original_channel_id)
-
+        # !!! Assumption that uploaded files have more than 100 bytes
+        file_size = os.path.getsize('{}{}'.format(temporary_dir, filename))
+        if file_size < 100:
+            msg = 'Attached file is empty or too small file size (<100bytes). Please try again.'
+            tl.sendMessageToChannels(message=message,
+                                     message_str=msg,
+                                     channels=[original_channel_id, organizer_channel_id],
+                                     default_id=original_channel_id)
+            bin_test_que.remove(teamname)
+            game_flag = False
+            return
     elif result == 'file type is not applicable.':
         message.reply('File type is not applicable.\n Applicable file type is tar.gz')
+        bin_test_que.remove(teamname)
         game_flag = False
         return
     elif result == 'empty':
         message.reply('Attached file is not exist.')
+        bin_test_que.remove(teamname)
         game_flag = False
         return
     elif result == 'type null':
         message.reply(
             'Uploading binary may be too fast.\n please wait approx. 10 seconds after uploading binary is completed')
+        bin_test_que.remove(teamname)
         game_flag = False
         return
     else:
         message.send('Uploading file is failed.')
+        bin_test_que.remove(teamname)
         game_flag = False
         return
+
+    msg = 'Binary upload succeeded.'
+    tl.sendMessageToChannels(message=message,
+                             message_str=msg,
+                             channels=[original_channel_id, organizer_channel_id],
+                             default_id=original_channel_id)
 
     sleep(5)
 
@@ -877,17 +913,20 @@ def file_download(message):
                               COMPETITION_MANAGER_PATH], encoding='utf-8', stdout=subprocess.PIPE)
     if 'Error is not recoverable' in extract.stdout:
         message.reply("Uploaded file cannot be extracted. Please check the contents of the uploaded file.")
+        bin_test_que.remove(teamname)
         game_flag = False
         return
 
-    if os.path.isdir(temporary_dir):
+    if os.path.isdir('{}{}'.format(temporary_dir, teamname)):
         teamfiles = os.listdir('{}{}'.format(temporary_dir, teamname))
         if "start" not in teamfiles:
             message.reply("There is no \'start\' script in your file.")
+            bin_test_que.remove(teamname)
             game_flag = False
             return
         if "kill" not in teamfiles:
             message.send("There is no \'kill\' script in your file.")
+            bin_test_que.remove(teamname)
             game_flag = False
             return
         if "team.yml" not in teamfiles:
@@ -900,12 +939,17 @@ def file_download(message):
         message.reply(
             "The structure of team directory is wrong or the name of team directory is different from \'{}\'".format(teamname)
         )
+        bin_test_que.remove(teamname)
         game_flag = False
         return
 
-    shutil.copy2('{}{}.tar.gz'.format(temporary_dir, teamname), os.environ['HOME'])
-    copy_tree('{}{}'.format(temporary_dir, teamname), '{}/{}'.format(os.environ['HOME'], teamname))
-    os.remove('{}{}.tar.gz'.format(temporary_dir, teamname))
+    if os.path.exists('{}/{}.tar.gz'.format(os.environ['HOME'], teamname)):
+        os.remove('{}/{}.tar.gz'.format(os.environ['HOME'], teamname))
+    if os.path.exists('{}/{}'.format(os.environ['HOME'], teamname)):
+        shutil.rmtree('{}/{}'.format(os.environ['HOME'], teamname))
+
+    shutil.move('{}{}.tar.gz'.format(temporary_dir, teamname), '{}/{}.tar.gz'.format(os.environ['HOME'], teamname))
+    shutil.move('{}{}'.format(temporary_dir, teamname), '{}/{}'.format(os.environ['HOME'], teamname))
 
     message.reply('Binary test start (please wait approx. 2 min.)')
 
@@ -933,10 +977,19 @@ def file_download(message):
 
     if os.path.exists(TOURNAMENT_PATH + log_dir + '/match_1'):
         for f_name in os.listdir(TOURNAMENT_PATH + log_dir + '/match_1'):
-            if 'rc' in f_name and '.gz' in f_name:
+            if ('rc' in f_name and '.gz' in f_name) or ('team_l' in f_name and '.log' in f_name):
                 tl.upload_file_s(TOURNAMENT_PATH + log_dir + '/match_1/' + f_name,
                                  message.body['channel'])
 
+    # check team_name
+    if not os.path.exists('{}/test/log_ana/{}.csv'.format(COMPETITION_MANAGER_PATH, teamname)):
+        msg = 'the team name is different from \'{}\''.format(teamname)
+        message.reply(msg)
+        bin_test_que.remove(teamname)
+        game_flag = False
+        return
+
+    # check disconnected players
     discon_index = result_analyze.stdout.find('DisconnectedPlayer')
     discon_p = result_analyze.stdout[discon_index + len('DisconnectedPlayer'):].replace('\n', '')
     print('discon_p', discon_p)
@@ -991,7 +1044,8 @@ def file_download(message):
     os.makedirs(LOG_DIR+'test/', exist_ok=True)
     shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir), '{}test/{}/{}'.format(LOG_DIR, teamname, upload_time))
 
-    # reset game flag
+    # reset game flag and bin-test-que
+    bin_test_que.remove(teamname)
     game_flag = False
 
 

@@ -33,7 +33,7 @@ LOG_DIR = MANAGER_CONF['log_dir']
 API_TOKEN = MANAGER_CONF['slack_api_token']
 
 # Default Reply (when @bot)
-DEFAULT_REPLY = 'Mention respond is only supported in DM (\'bin\', \'help\' command)'
+DEFAULT_REPLY = 'Mention respond is only supported in DM to me (\'upload\' command is only available).'
 
 # Subdirectory name of plugin scripts
 PLUGINS = ['plugins']

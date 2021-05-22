@@ -30,8 +30,8 @@ def getHelpMessageForOrganizers():
           ' -register* : Update registered team-list. (e.g. register hogehoge@gmail.com,teamA)\n' \
           ' -group* : Create a group and select teams to run the round-robin. (e.g. groupA teamA,teamB,teamC,...)\n' \
           ' -start group* : Start round-robon. (e.g. start groupA)\n' \
-          ' -upload start : Add upload authorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
-          ' -upload end : Remove upload autorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
+          ' -binary upload start : Add upload authorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
+          ' -binary upload end : Remove upload autorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
           ' -test : Test qualified teams. (e.g. test teamA,teamB,teamC,...)\n' \
           ' -stop test : Cancel testing teams\n' \
           ' -announce match: Announce the progress report and match result\n' \
@@ -39,7 +39,7 @@ def getHelpMessageForOrganizers():
           ' -dropbox* : Switch dropbox flag whether dropbox will be used or not. (e.g. dropbox true)\n' \
           ' -gdrive* : Switch google_drive flag whether google_drive will be used or not. (e.g. gdrive true)\n' \
           ' -discordbot* : Switch discordbot flag whether discord_bot will be used or not. (e.g. discordbot true)\n' \
-          ' -share* : Send files to the Cloud storage. Choose \'teams\' or \'logs\' as an argument (e.g. share teams)\n'
+          ' -share* : Send files to the cloud storage. Choose \'teams\' or \'logs\' as an argument (e.g. share teams)\n'
     return msg
 
 
@@ -49,7 +49,8 @@ def getHelpMessageForAnnounce():
 
 
 def getHelpMessageForDM():
-    msg = '\'bin\' command is only available in DM. (e.g. bin teamA)'
+    msg = 'You can only use \'upload\' command in DM. (e.g. upload teamA)\n' \
+          'Please refer to https://docs.google.com/document/d/1J2Pml2NStNWkRi4zZUVr_1SC9DxyJDOmTrwSMAPzSXQ/edit?usp=sharing'
     return msg
 
 
@@ -213,6 +214,8 @@ def sendMessageToDiscordChannel(message_str):
                          shell=True)
     if p.returncode == 0:
         print('Send message to discord successfully.')
+    else:
+        print('Sending message to discord is failed.')
 
 
 class MyDropbox(object):
