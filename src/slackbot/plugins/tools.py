@@ -25,9 +25,9 @@ def getHelpMessageForOrganizers():
     msg = '[Command list]\n' \
           ' -team : Show qualified team that succeeded the binary test.\n' \
           ' -clear qualification : Clear qualification.\n' \
-          ' -server* : Update IP address for rcssserver. (e.g. server 127.0.0.1)\n' \
-          ' -host* : Update hosts\' IP addresses for teams. 2 addresses are required. (e.g. host 127.0.0.1,127.0.0.1)\n' \
-          ' -register* : Update registered team-list. (e.g. register hogehoge@gmail.com,teamA)\n' \
+          ' -server * : Update IP address for rcssserver. (e.g. server 127.0.0.1)\n' \
+          ' -host *,* : Update hosts\' IP addresses for teams. 2 addresses are required. (e.g. host 127.0.0.1,127.0.0.1)\n' \
+          ' -register * : Update registered team-list. (e.g. register hogehoge@gmail.com,teamA)\n' \
           ' -group* : Create a group and select teams to run the round-robin. (e.g. groupA teamA,teamB,teamC,...)\n' \
           ' -start group* : Start round-robon. (e.g. start groupA)\n' \
           ' -binary upload start : Add upload authorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
@@ -39,7 +39,10 @@ def getHelpMessageForOrganizers():
           ' -dropbox* : Switch dropbox flag whether dropbox will be used or not. (e.g. dropbox true)\n' \
           ' -gdrive* : Switch google_drive flag whether google_drive will be used or not. (e.g. gdrive true)\n' \
           ' -discordbot* : Switch discordbot flag whether discord_bot will be used or not. (e.g. discordbot true)\n' \
-          ' -share* : Send files to the cloud storage. Choose \'teams\' or \'logs\' as an argument (e.g. share teams)\n'
+          ' -share* : Send files to the cloud storage. Choose \'teams\' or \'logs\' as an argument (e.g. share teams)\n' \
+          ' -recovery mode * : Switch recovery mode that can change game flag and binary test queue. (e.g. recovery mode true)\n' \
+          ' -reset gameflag: Reset game flag. Please check rcssserver state before use this (! this command is only available during recovery mode!)\n' \
+          ' -reset test queue * : Remove the specified team from the binary test queue. (! this command is only available during recovery mode!)'
     return msg
 
 

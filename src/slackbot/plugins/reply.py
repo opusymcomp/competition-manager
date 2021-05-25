@@ -14,12 +14,13 @@ from plugins import bin_download as dl
 from time import sleep
 
 bin_flag = False
-bin_test_que = []
+bin_test_queue = []
 dbx_flag = False
 google_drive_flag = False
 discordbot_flag = False
 announce_flag = False
 game_flag = False
+recovery_mode = False
 
 
 if dbx_flag:
@@ -640,6 +641,7 @@ def listen_func(message):
     global discordbot_flag
     global game_flag
     global announce_flag
+    global bin_test_queue
 
     msg = 'Status:\n' \
           ' -bin_flag: {}\n' \
@@ -647,8 +649,11 @@ def listen_func(message):
           ' -google_drive_flag: {}\n' \
           ' -discordbot flag: {}\n' \
           ' -game_flag: {}\n' \
-          ' -announce_flag: {}\n'.format(bin_flag, dbx_flag, google_drive_flag,
-                                         discordbot_flag, game_flag, announce_flag)
+          ' -announce_flag: {}\n' \
+          ' -bin_test_queue: {}\n' \
+          ' -recovery_mode: {}'.format(bin_flag, dbx_flag, google_drive_flag,
+                                       discordbot_flag, game_flag, announce_flag,
+                                       ','.join(bin_test_queue), recovery_mode)
     message.reply(msg)
 
 
@@ -818,12 +823,12 @@ def file_download(message):
         message.reply(msg)
         return
 
-    global bin_test_que
-    if teamname in bin_test_que:
+    global bin_test_queue
+    if teamname in bin_test_queue:
         msg = 'Your team is already in binary-test que.'
         message.reply(msg)
         return
-    bin_test_que.append(teamname)
+    bin_test_queue.append(teamname)
 
     is_first_comment = False
     global game_flag
@@ -863,7 +868,7 @@ def file_download(message):
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
-            bin_test_que.remove(teamname)
+            bin_test_queue.remove(teamname)
             game_flag = False
             return
         # !!! Assumption that uploaded files have more than 100 bytes
@@ -874,28 +879,28 @@ def file_download(message):
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
-            bin_test_que.remove(teamname)
+            bin_test_queue.remove(teamname)
             game_flag = False
             return
     elif result == 'file type is not applicable.':
         message.reply('File type is not applicable.\n Applicable file type is tar.gz')
-        bin_test_que.remove(teamname)
+        bin_test_queue.remove(teamname)
         game_flag = False
         return
     elif result == 'empty':
         message.reply('Attached file is not exist.')
-        bin_test_que.remove(teamname)
+        bin_test_queue.remove(teamname)
         game_flag = False
         return
     elif result == 'type null':
         message.reply(
             'Uploading binary may be too fast.\n please wait approx. 10 seconds after uploading binary is completed')
-        bin_test_que.remove(teamname)
+        bin_test_queue.remove(teamname)
         game_flag = False
         return
     else:
         message.send('Uploading file is failed.')
-        bin_test_que.remove(teamname)
+        bin_test_queue.remove(teamname)
         game_flag = False
         return
 
@@ -913,7 +918,7 @@ def file_download(message):
                               COMPETITION_MANAGER_PATH], encoding='utf-8', stdout=subprocess.PIPE)
     if 'Error is not recoverable' in extract.stdout:
         message.reply("Uploaded file cannot be extracted. Please check the contents of the uploaded file.")
-        bin_test_que.remove(teamname)
+        bin_test_queue.remove(teamname)
         game_flag = False
         return
 
@@ -921,12 +926,12 @@ def file_download(message):
         teamfiles = os.listdir('{}{}'.format(temporary_dir, teamname))
         if "start" not in teamfiles:
             message.reply("There is no \'start\' script in your file.")
-            bin_test_que.remove(teamname)
+            bin_test_queue.remove(teamname)
             game_flag = False
             return
         if "kill" not in teamfiles:
             message.send("There is no \'kill\' script in your file.")
-            bin_test_que.remove(teamname)
+            bin_test_queue.remove(teamname)
             game_flag = False
             return
         if "team.yml" not in teamfiles:
@@ -939,7 +944,7 @@ def file_download(message):
         message.reply(
             "The structure of team directory is wrong or the name of team directory is different from \'{}\'".format(teamname)
         )
-        bin_test_que.remove(teamname)
+        bin_test_queue.remove(teamname)
         game_flag = False
         return
 
@@ -985,7 +990,7 @@ def file_download(message):
     if not os.path.exists('{}/test/log_ana/{}.csv'.format(COMPETITION_MANAGER_PATH, teamname)):
         msg = 'the team name is different from \'{}\''.format(teamname)
         message.reply(msg)
-        bin_test_que.remove(teamname)
+        bin_test_queue.remove(teamname)
         game_flag = False
         return
 
@@ -1045,7 +1050,7 @@ def file_download(message):
     shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir), '{}test/{}/{}'.format(LOG_DIR, teamname, upload_time))
 
     # reset game flag and bin-test-que
-    bin_test_que.remove(teamname)
+    bin_test_queue.remove(teamname)
     game_flag = False
 
 
@@ -1116,3 +1121,73 @@ def file_upload(message):
     if discordbot_flag:
         tl.sendMessageToDiscordChannel(message_str=msg)
 
+
+@listen_to('^recovery mode \w+$')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def switch_recovery_mode(message):
+    txt_list = message.body['text'].split()
+    if len(txt_list) != 3:
+        msg = 'Illegal input\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    if txt_list[-1] != 'true' and txt_list[-1] != 'false':
+        msg = 'You can choose \'true\' or \'false\' in this command\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    global recovery_mode
+    recovery_mode = True if txt_list[-1] == 'true' else False
+    msg = 'recovery_mode is changed to \'{}\'\n'.format(txt_list[-1])
+    msg += '!!!!! you can reset bin_test_queue and gameflag. Please switch back to false after your recovery !!!!!'
+    message.reply(msg)
+    return
+
+
+@listen_to('^reset gameflag$')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def reset_gameflag(message):
+    txt_list = message.body['text'].split()
+    if len(txt_list) != 2:
+        msg = 'Illegal input\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    global recovery_mode
+    if not recovery_mode:
+        msg = 'This command can only available in recovery mode.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    global game_flag
+    game_flag = False
+
+
+@listen_to('^reset test queue \w+$')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def reset_test_queue(message):
+    txt_list = message.body['text'].split()
+    if len(txt_list) != 4:
+        msg = 'Illegal input\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    global recovery_mode
+    if not recovery_mode:
+        msg = 'This command can only available in recovery mode.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    global bin_test_queue
+    if txt_list[-1] in bin_test_queue:
+        bin_test_queue.remove(txt_list[-1])
+        msg = '{} is removed from queue'.format(txt_list[-1])
+    else:
+        msg = '{} is not exist in queue'.format(txt_list[-1])
+    message.reply(msg)
