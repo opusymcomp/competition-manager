@@ -22,11 +22,9 @@ announce_flag = False
 game_flag = False
 recovery_mode = False
 
-
 if dbx_flag:
     db = tl.MyDropbox(DROPBOX_ACCESS_TOKEN, DROPBOX_BOOT_DIR)
     db.createFolder(DROPBOX_BOOT_DIR)
-
 
 if os.environ.get("PATH"):
     os.environ["PATH"] = LOGANALYZER_PATH + ":" + os.environ["PATH"]
@@ -161,7 +159,8 @@ def listen_func(message):
             tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
             msg = 'host\n-' + ','.join(tournament_yml['hosts'])
         else:
-            msg = '{}config/tournament.yml is not exist. Please set hosts by \'host\' command (e.g. host 127.0.0.1,127.0.0.1)\n'.format(COMPETITION_MANAGER_PATH)
+            msg = '{}config/tournament.yml is not exist. Please set hosts by \'host\' command (e.g. host 127.0.0.1,127.0.0.1)\n'.format(
+                COMPETITION_MANAGER_PATH)
             msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
         return
@@ -201,7 +200,8 @@ def listen_func(message):
             tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
             msg = 'server\n-' + tournament_yml['server']
         else:
-            msg = '{}config/tournament.yml is not exist. Please set server by \'server\' command (e.g. server 127.0.0.1)\n'.format(COMPETITION_MANAGER_PATH)
+            msg = '{}config/tournament.yml is not exist. Please set server by \'server\' command (e.g. server 127.0.0.1)\n'.format(
+                COMPETITION_MANAGER_PATH)
             msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
         return
@@ -259,8 +259,10 @@ def cool_func(message):
 
     tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), tournament_conf)
 
-    msg = 'The ' + group + ' starts soon \n Start time : ' + dt_start + '\n I will notify you when the game ' \
-                                                                        'finished.\n '
+    msg = tl.getGroupMatchListMessage(group)
+    # msg = group + ' tournament starts soon \n' \
+        #  'Start time : ' + dt_start + '\nI will notify you when all games are finished.\n'
+
     message.react('+1')
     original_channel_id = message.body['channel']
     announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
@@ -360,8 +362,9 @@ def cool_func(message):
         message.reply(msg)
         return
 
-    dt_finish = datetime.datetime.now().strftime('%Y%m%d%H%M')
-    msg = 'The ' + group + ' finish! \n Finish time : ' + dt_finish
+    # dt_finish = datetime.datetime.now().strftime('%Y%m%d%H%M')
+    msg = group + ' tournament is over.\n' \
+        #  'Finish time : ' + dt_finish
 
     if dbx_flag:
         db_g_link = db.get_shared_link(DROPBOX_BOOT_DIR + '/' + group)
@@ -444,9 +447,11 @@ def listen_func(message):
 
                 if google_drive_flag:
                     gdrive = tl.MyGoogleDrive()
-                    gdrive.upload(tournament_log_dir+match_dir, prefix='logs/'+group)
+                    gdrive.upload(tournament_log_dir + match_dir, prefix='logs/' + group)
 
-                msg = 'match end\n' + tl.getMatchResultMessage(match_dict, result_dict, pre_match)
+                msg = 'The game finished with the following scores:\n' + tl.getMatchResultMessage(match_dict,
+                                                                                                  result_dict,
+                                                                                                  pre_match)
                 if dbx_flag:
                     msg += '\n' + db_link
                 if google_drive_flag:
@@ -459,7 +464,7 @@ def listen_func(message):
                 if discordbot_flag:
                     tl.sendMessageToDiscordChannel(msg)
 
-            msg = 'match start\n' + tl.getMatchStartMessage(match_dict, match_n)
+            msg = 'The following game has started:\n' + tl.getMatchStartMessage(match_dict, match_n)
 
             tl.sendMessageToChannels(message=message,
                                      message_str=msg,
@@ -492,9 +497,11 @@ def listen_func(message):
 
     if google_drive_flag:
         gdrive = tl.MyGoogleDrive()
-        gdrive.upload(tournament_log_dir+match_dir, prefix='logs/'+group)
+        gdrive.upload(tournament_log_dir + match_dir, prefix='logs/' + group)
 
-    msg = 'match end\n' + tl.getMatchResultMessage(match_dict, result_dict, match_dict['max_match'])
+    msg = 'The game finished with the following scores:\n' + tl.getMatchResultMessage(match_dict,
+                                                                                      result_dict,
+                                                                                      match_dict['max_match'])
     if dbx_flag:
         msg += '\n' + db_link
     if google_drive_flag:
@@ -516,16 +523,10 @@ def listen_func(message):
     txt_list = message.body['text'].split()
     group = txt_list[2]
     if len(txt_list) == 3 and 'group' in group:
-        if os.path.exists('{}config/group.yml'.format(COMPETITION_MANAGER_PATH)):
-            groups_yml = tl.loadYml('{}config/group.yml'.format(COMPETITION_MANAGER_PATH))
-            if group in groups_yml.keys():
-                teams_in_group = groups_yml[group]
-            else:
-                msg = '\'{}\' is not exist.\nPlease create groups before using this command.'
-                message.reply(msg)
-                return
-        else:
-            msg = 'There is no \'group.yml\'.\nPlease create groups before using this command.'
+        teams = tl.getTeamsInGroup(group)
+        if len(teams) == 0:
+            msg = '\'{}\' is empty. Please create groups by \'group\' command before using this command.'.format(
+                group)
             message.reply(msg)
             return
     else:
@@ -533,29 +534,7 @@ def listen_func(message):
         message.reply(msg)
         return
 
-    tmp_setting = {'teams': teams_in_group,
-                   'log_dir': 'tmp'}
-
-    # save as tmp yml in order to avoid overwriting the current tournament configuration
-    tmp_yml_name = '{}config/check_matches.yml'.format(COMPETITION_MANAGER_PATH)
-    tl.overwriteYml(tmp_yml_name, tmp_setting)
-    group_match_sim = tl.startSimulate(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
-    tmp_yml = tl.loadYml(tmp_yml_name)
-    os.remove(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
-
-    print(group_match_sim.stdout)
-
-    matches = group_match_sim.stdout.split("\n")
-    msg = ''
-    for i in range(len(matches) - 2):
-        if i == 0:
-            continue
-        elif i > 1:
-            mod_row = matches[i].split()
-            mod_row[1] = mod_row[1].replace(tmp_yml['teams_dir'] + '/', '')
-            mod_row[3] = mod_row[3].replace(tmp_yml['teams_dir'] + '/', '')
-            matches[i] = " ".join(mod_row)
-        msg += matches[i] + '\n'
+    msg = tl.getGroupMatchListMessage(group)
 
     original_channel_id = message.body['channel']
     announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
@@ -563,7 +542,7 @@ def listen_func(message):
                              message_str=msg,
                              channels=[original_channel_id, announce_channel_id],
                              default_id=original_channel_id)
-    if discordbot_flag :
+    if discordbot_flag:
         tl.sendMessageToDiscordChannel(msg)
 
 
@@ -657,7 +636,7 @@ def listen_func(message):
     message.reply(msg)
 
 
-@listen_to(r'^binary upload start$')
+@listen_to(r'^allow binary upload$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
     global bin_flag
@@ -761,7 +740,7 @@ def listen_func(message):
         message.send(t_team + ' test finish')
 
         # move logfiles to competition-manager
-        os.makedirs(LOG_DIR+'test/', exist_ok=True)
+        os.makedirs(LOG_DIR + 'test/', exist_ok=True)
         shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir), '{}test/{}/{}'.format(LOG_DIR, t_team, time))
 
     message.send('test complete')
@@ -792,32 +771,13 @@ def file_download(message):
         message.reply(msg)
         return
 
-    list_flag = False
-    only_mail_flag = False
-    only_team_flag = False
-    with open('{}config/maillist.txt'.format(COMPETITION_MANAGER_PATH), mode='rt', encoding='utf-8') as f:
-        for line in f:
-            if line == '\n':
-                continue
-            if line[0] == '#':
-                continue
-            l_mail, l_team = line.strip().split(',')
-            if l_mail == email and l_team == teamname:
-                list_flag = True
-                # break
-            if l_mail == email:
-                only_mail_flag = True
-                tmp_team = l_team
-                # break
-            if l_team == teamname:
-                only_team_flag = True
-                # break
-
+    list_flag, only_mail_flag, only_team_flag, tmp_team = tl.checkRegistration('{}config/maillist.txt'.format(COMPETITION_MANAGER_PATH),
+                                                                               email, teamname)
     if not list_flag:
         if only_team_flag:
             msg = 'Only the team leader can upload team binary.'
         elif only_mail_flag:
-            msg = 'Your team name may be \'{}\', not \'{}\''.format(tmp_team, teamname)
+            msg = 'Your team name may be \'{}\''.format(tmp_team, teamname)
         else:
             msg = 'Your team is not resistered. Please ask organizers.'
         message.reply(msg)
@@ -835,7 +795,7 @@ def file_download(message):
     while True:
         if game_flag:
             if not is_first_comment:
-                msg = 'Another team is testing now.\n Please wait a moment...'
+                msg = 'Another team is testing now.\n Please wait for a moment...'
                 message.reply(msg)
                 is_first_comment = True
             sleep(10)
@@ -863,7 +823,8 @@ def file_download(message):
     print("bin download ", result)
     if result == 'ok':
         if teamname != filename.split('.tar.gz')[0]:
-            msg = 'Attached file\'s name [{}] is different from your command [{}]'.format(filename.split('.tar.gz')[0], teamname)
+            msg = 'Attached file\'s name [{}] is different from your command [{}]'.format(filename.split('.tar.gz')[0],
+                                                                                          teamname)
             tl.sendMessageToChannels(message=message,
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
@@ -942,7 +903,8 @@ def file_download(message):
             os.chmod(temporary_dir + teamname + '/' + excecuted, 0o777)
     else:
         message.reply(
-            "The structure of team directory is wrong or the name of team directory is different from \'{}\'".format(teamname)
+            "The structure of team directory is wrong or the name of team directory is different from \'{}\'".format(
+                teamname)
         )
         bin_test_queue.remove(teamname)
         game_flag = False
@@ -956,7 +918,7 @@ def file_download(message):
     shutil.move('{}{}.tar.gz'.format(temporary_dir, teamname), '{}/{}.tar.gz'.format(os.environ['HOME'], teamname))
     shutil.move('{}{}'.format(temporary_dir, teamname), '{}/{}'.format(os.environ['HOME'], teamname))
 
-    message.reply('Binary test start (please wait approx. 2 min.)')
+    message.reply('Test game starts in about 2 minutes')
 
     upload_time = datetime.datetime.now().strftime('%Y%m%d%H%M')
     yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
@@ -977,7 +939,7 @@ def file_download(message):
     # analyze the test
     result_analyze = subprocess.run(['{}/test/analyze_test.sh'.format(COMPETITION_MANAGER_PATH),
                                      TOURNAMENT_PATH + log_dir, LOGANALYZER_PATH],
-                                     encoding='utf-8', stdout=subprocess.PIPE)
+                                    encoding='utf-8', stdout=subprocess.PIPE)
     print(result_analyze.stdout)
 
     if os.path.exists(TOURNAMENT_PATH + log_dir + '/match_1'):
@@ -1033,8 +995,9 @@ def file_download(message):
 
         elif discon_p != '' and int(discon_p) > 0:
             # something error message
-            message.send('The number of disconnected players is {}. The connection with rcssserver was successful, '
-                         'but team binary has something error.'.format(discon_p))
+            message.send('{} players were disconnected. Something may be wrong with the binary '
+                         'while it could successfully connected to rcssserver at the beginning of the game.'.format(
+                discon_p))
         else:
             message.send('??? Something wrong ???')
     except Exception:
@@ -1046,7 +1009,7 @@ def file_download(message):
                                  default_id=original_channel_id)
 
     # move logfiles to competition-manager
-    os.makedirs(LOG_DIR+'test/', exist_ok=True)
+    os.makedirs(LOG_DIR + 'test/', exist_ok=True)
     shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir), '{}test/{}/{}'.format(LOG_DIR, teamname, upload_time))
 
     # reset game flag and bin-test-que
@@ -1087,7 +1050,7 @@ def register_team(message):
 
     maillist_path = '{}config/maillist.txt'.format(COMPETITION_MANAGER_PATH)
     with open(maillist_path, 'a') as m_txt:
-        m_txt.write(','.join(splitted_body_txt)+'\n')
+        m_txt.write(','.join(splitted_body_txt) + '\n')
     message.reply('{},{} are registered in maillist.txt'.format(splitted_body_txt[0], splitted_body_txt[1]))
 
 
@@ -1109,7 +1072,8 @@ def file_upload(message):
     upload_target = LOG_DIR if txt[-1] == 'logs' else TEAMS_DIR
     gdrive.upload(upload_target)
 
-    msg = 'upload \'{}\' to https://drive.google.com/drive/folders/{}'.format(txt[-1], GOOGLE_DRIVE_FOLDER_ID)
+    msg = 'Game logs' if txt[-1] == 'logs' else 'Team binaries'
+    msg = '{} are available at https://drive.google.com/drive/folders/{}'.format(msg, GOOGLE_DRIVE_FOLDER_ID)
 
     original_channel_id = message.body['channel']
     announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)

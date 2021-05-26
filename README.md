@@ -150,7 +150,7 @@ announce match
 ```
 - slackbotにDMでバイナリ受け入れ開始コマンドを送信
 ```
-binary upload start
+allow binary upload
 binary upload end
 ```
 - バイナリテスト完了チームリストの初期化

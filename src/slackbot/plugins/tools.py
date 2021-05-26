@@ -29,8 +29,8 @@ def getHelpMessageForOrganizers():
           ' -host *,* : Update hosts\' IP addresses for teams. 2 addresses are required. (e.g. host 127.0.0.1,127.0.0.1)\n' \
           ' -register * : Update registered team-list. (e.g. register hogehoge@gmail.com,teamA)\n' \
           ' -group* : Create a group and select teams to run the round-robin. (e.g. groupA teamA,teamB,teamC,...)\n' \
-          ' -start group* : Start round-robon. (e.g. start groupA)\n' \
-          ' -binary upload start : Add upload authorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
+          ' -start group* : Start round-robin. (e.g. start groupA)\n' \
+          ' -allow binary upload : Add upload authorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
           ' -binary upload end : Remove upload autorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
           ' -test : Test qualified teams. (e.g. test teamA,teamB,teamC,...)\n' \
           ' -stop test : Cancel testing teams\n' \
@@ -200,6 +200,64 @@ def getMatchResultMessage(match_dict, result_dict, focused_game_id):
           + result_dict['right score'] + '_' \
           + match_dict['match_' + str(focused_game_id)]['team_r']
     return msg
+
+
+def getGroupMatchListMessage(group):
+    teams = getTeamsInGroup(group)
+    tmp_setting = {'teams': teams,
+                   'log_dir': 'tmp'}
+
+    # save as tmp yml in order to avoid overwriting the current tournament configuration
+    tmp_yml_name = '{}config/check_matches.yml'.format(COMPETITION_MANAGER_PATH)
+    overwriteYml(tmp_yml_name, tmp_setting)
+    group_match_sim = startSimulate(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
+    tmp_yml = loadYml(tmp_yml_name)
+    os.remove(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
+
+    print(group_match_sim.stdout)
+
+    matches = group_match_sim.stdout.split("\n")
+    msg = ''
+    for i in range(len(matches) - 2):
+        if i == 0:
+            continue
+        elif i == 1:
+            matches[i] = matches[i].replace('group', group)
+        else:
+            mod_row = matches[i].split()
+            mod_row[1] = mod_row[1].replace(tmp_yml['teams_dir'] + '/', '')
+            mod_row[3] = mod_row[3].replace(tmp_yml['teams_dir'] + '/', '')
+            matches[i] = " ".join(mod_row)
+        msg += matches[i] + '\n'
+
+    return msg
+
+
+def checkRegistration(registration_txt, email, teamname):
+    list_flag = False
+    only_mail_flag = False
+    only_team_flag = False
+    tmp_team = None
+
+    with open(registration_txt, mode='rt', encoding='utf-8') as f:
+        for line in f:
+            if line == '\n':
+                continue
+            if line[0] == '#':
+                continue
+            l_mail, l_team = line.strip().split(',')
+            if l_mail == email and l_team == teamname:
+                list_flag = True
+                # break
+            if l_mail == email:
+                only_mail_flag = True
+                tmp_team = l_team
+                # break
+            if l_team == teamname:
+                only_team_flag = True
+                # break
+
+    return list_flag, only_mail_flag, only_team_flag, tmp_team
 
 
 def sendMessageToChannels(message, message_str, channels, default_id):
