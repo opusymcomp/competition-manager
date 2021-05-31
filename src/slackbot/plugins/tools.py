@@ -21,6 +21,11 @@ def resCmd(cmd):
         shell=True).communicate()[0]
 
 
+def syncFiles(from_path, to_path):
+    return subprocess.run(['rsync -an {} {}'.format(from_path, to_path)],
+                          encoding='utf-8', stdout=subprocess.PIPE, shell=True)
+
+
 def getHelpMessageForOrganizers():
     msg = '[Command list]\n' \
           ' -team : Show qualified team that succeeded the binary test.\n' \

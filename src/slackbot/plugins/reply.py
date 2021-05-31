@@ -276,6 +276,11 @@ def cool_func(message):
     game_flag = True
     conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
+    for teamname in tournament_conf['teams']:
+        tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+        for h in tournament_conf['host']:
+            tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
+
     """
     if conf['mode'] == 'single_match':
         for num_l in range(len(roundrobin) - 1):
@@ -735,6 +740,13 @@ def listen_func(message):
         conf['teams'] = [t_team, 'agent2d']
         tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), conf)
 
+        # synch teams
+        tl.syncFiles('{}/{}'.format(os.environ['HOME'], t_team),'{}:/home/{}'.format(conf['server'], USERNAME))
+        tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(conf['server'], USERNAME))
+        for h in conf['host']:
+            tl.syncFiles('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(h, USERNAME))
+            tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
+
         message.send(t_team + ' test start')
         _ = tl.startGame(yml_name)
         message.send(t_team + ' test finish')
@@ -932,6 +944,13 @@ def file_download(message):
     tournament_conf['teams'] = [teamname, 'agent2d']
     tournament_conf['server_conf'] = 'config/rcssserver/server_test.conf'
     tl.overwriteYml(yml_name, tournament_conf)
+
+    # sync the uploaded team
+    tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    for h in tournament_conf['host']:
+        tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
+        tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
     result_game = tl.startGame(yml_name)
     print(result_game.stdout)
