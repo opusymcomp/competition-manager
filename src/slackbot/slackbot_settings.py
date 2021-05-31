@@ -11,7 +11,7 @@ COMPETITION_MANAGER_PATH = MANAGER_CONF['competition_manager_path']
 LOGANALYZER_PATH = MANAGER_CONF['loganalyzer_path']
 TOURNAMENT_PATH = MANAGER_CONF['tournament_path']
 
-USERNAME = MANAGER_CONF['robocup']
+USERNAME = MANAGER_CONF['username']
 
 DROPBOX_ACCESS_TOKEN = MANAGER_CONF['dropbox_access_token']
 DROPBOX_BOOT_DIR = MANAGER_CONF['dropbox_boot_dir']
