@@ -278,7 +278,7 @@ def cool_func(message):
 
     for teamname in tournament_conf['teams']:
         tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
-        for h in tournament_conf['host']:
+        for h in tournament_conf['hosts']:
             tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
 
     """
@@ -743,7 +743,7 @@ def listen_func(message):
         # synch teams
         tl.syncFiles('{}/{}'.format(os.environ['HOME'], t_team),'{}:/home/{}'.format(conf['server'], USERNAME))
         tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(conf['server'], USERNAME))
-        for h in conf['host']:
+        for h in conf['hosts']:
             tl.syncFiles('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(h, USERNAME))
             tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
@@ -948,7 +948,7 @@ def file_download(message):
     # sync the uploaded team
     tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
     tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
-    for h in tournament_conf['host']:
+    for h in tournament_conf['hosts']:
         tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
         tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
