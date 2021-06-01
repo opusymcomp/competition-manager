@@ -690,7 +690,7 @@ def listen_func(message):
     # save pre-uploaded binary
     qualified_teams = tl.getQualifiedTeams()
     for q_team in qualified_teams:
-        team_path = os.environ['HOME'] + '/' + q_team + '.tar.gz'
+        team_path = COMPETITION_MANAGER_PATH + 'qualified_team' + '/' + q_team + '.tar.gz'
         archive_team_dir = '{}{}/'.format(TEAMS_DIR, archived_time)
         os.makedirs(archive_team_dir, exist_ok=True)
         shutil.copy2(team_path, archive_team_dir)
