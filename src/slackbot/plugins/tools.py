@@ -151,12 +151,12 @@ def overwriteYml(path, added_info):
                      'log_dir': 'log',
                      'match_sleep': 2,
                      'mode': 'group',
-                     'player_conf': 'config/rcssserver/player_official.conf'.format(TOURNAMENT_PATH),
-                     'server_conf': 'config/rcssserver/server_official.conf'.format(TOURNAMENT_PATH),
+                     'player_conf': 'config/rcssserver/player_official.conf',
+                     'server_conf': 'config/rcssserver/server_official.conf',
                      'shutdown_sleep': 2,
                      'team_mode': 'official',
                      'teams': ['', ''],
-                     'teams_dir': os.environ['HOME'],
+                     'teams_dir': '/home/{}'.format(USERNAME),
                      'title': COMPETITION_NAME
                      }
 
