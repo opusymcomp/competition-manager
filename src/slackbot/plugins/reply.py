@@ -276,13 +276,15 @@ def cool_func(message):
     game_flag = True
     conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
+    qualified_dir = "{}qualified_team/".format(COMPETITION_MANAGER_PATH)
+
     print('sync tournament scripts and teams...')
     tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
     tl.rsync('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
     for teamname in tournament_conf['teams']:
-        tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+        tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
         for h in tournament_conf['hosts']:
-            tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync('{}/{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(h, USERNAME))
 
     """
     if conf['mode'] == 'single_match':
@@ -749,15 +751,15 @@ def listen_func(message):
         conf['teams'] = [t_team, 'agent2d']
         tl.overwriteYml(yml_name, conf)
 
-        # synch tournament script and teams
-        # sync to server
+        qualified_dir = '{}qualified_team/'
+
         # sync tournament script
         tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
         # sync config file of tournament
         tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
         # sync teams
-        tl.rsync('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(conf['server'], USERNAME))
-        tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(conf['server'], USERNAME))
+        tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(conf['server'], USERNAME))
+        tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(conf['server'], USERNAME))
 
         # sync to host
         for h in conf['hosts']:
@@ -766,8 +768,8 @@ def listen_func(message):
             # sync config file of tournament
             tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
             # sync teams
-            tl.rsync('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(h, USERNAME))
-            tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME))
 
         message.send(t_team + ' test start')
         _ = tl.startGame(conf['server'], yml_name)
@@ -844,7 +846,14 @@ def file_download(message):
         msg = 'Sorry for late testing. Your binary test starts soon.'
         message.reply(msg)
 
-    # teamdir = os.environ['HOME'] + '/' + teamname
+    # qualified team directory that succeeded the binary test
+    qualified_dir = COMPETITION_MANAGER_PATH + 'qualified_team/'
+    os.makedirs(qualified_dir, exist_ok=True)
+
+    # failed team directory that failed the binary test
+    failed_dir = COMPETITION_MANAGER_PATH + 'failed_team/'
+    os.makedirs(qualified_dir, exist_ok=True)
+
     # temporary place in order to avoid illegal upload
     temporary_dir = COMPETITION_MANAGER_PATH + 'uploaded_team/'
     os.makedirs(temporary_dir, exist_ok=True)
@@ -866,6 +875,7 @@ def file_download(message):
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
+            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
             bin_test_queue.remove(teamname)
             game_flag = False
             return
@@ -877,11 +887,13 @@ def file_download(message):
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
+            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
             bin_test_queue.remove(teamname)
             game_flag = False
             return
     elif result == 'file type is not applicable.':
         message.reply('File type is not applicable.\n Applicable file type is tar.gz')
+        shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
         bin_test_queue.remove(teamname)
         game_flag = False
         return
@@ -893,11 +905,13 @@ def file_download(message):
     elif result == 'type null':
         message.reply(
             'Uploading binary may be too fast.\n please wait approx. 10 seconds after uploading binary is completed')
+        shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
         bin_test_queue.remove(teamname)
         game_flag = False
         return
     else:
         message.send('Uploading file is failed.')
+        shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
         bin_test_queue.remove(teamname)
         game_flag = False
         return
@@ -924,11 +938,13 @@ def file_download(message):
         teamfiles = os.listdir('{}{}'.format(temporary_dir, teamname))
         if "start" not in teamfiles:
             message.reply("There is no \'start\' script in your file.")
+            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
             bin_test_queue.remove(teamname)
             game_flag = False
             return
         if "kill" not in teamfiles:
             message.send("There is no \'kill\' script in your file.")
+            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
             bin_test_queue.remove(teamname)
             game_flag = False
             return
@@ -943,17 +959,10 @@ def file_download(message):
             "The structure of team directory is wrong or the name of team directory is different from \'{}\'".format(
                 teamname)
         )
+        shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
         bin_test_queue.remove(teamname)
         game_flag = False
         return
-
-    if os.path.exists('{}/{}.tar.gz'.format(os.environ['HOME'], teamname)):
-        os.remove('{}/{}.tar.gz'.format(os.environ['HOME'], teamname))
-    if os.path.exists('{}/{}'.format(os.environ['HOME'], teamname)):
-        shutil.rmtree('{}/{}'.format(os.environ['HOME'], teamname))
-
-    shutil.move('{}{}.tar.gz'.format(temporary_dir, teamname), '{}/{}.tar.gz'.format(os.environ['HOME'], teamname))
-    shutil.move('{}{}'.format(temporary_dir, teamname), '{}/{}'.format(os.environ['HOME'], teamname))
 
     message.reply('Test game starts in about 2 minutes')
 
@@ -976,8 +985,8 @@ def file_download(message):
     # sync config file of tournament
     tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
     # sync teams
-    tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
-    tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
 
     # sync to host
     for h in tournament_conf['hosts']:
@@ -986,8 +995,8 @@ def file_download(message):
         # sync config file of tournament
         tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
         # sync teams
-        tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
-        tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
+        tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(h, USERNAME))
+        tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME))
 
     result_game = tl.startGame(tournament_conf['server'], '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/')[-1]))
     print(result_game.stdout)
@@ -1052,6 +1061,9 @@ def file_download(message):
             msg = 'Please check that your team worked correctly.'
             message.send(msg)
 
+            # move the succeeded team in qualified_dir
+            shutil.move('{}{}.tar.gz'.format(temporary_dir, teamname), '{}{}.tar.gz'.format(qualified_dir, teamname))
+
         elif discon_p != '' and int(discon_p) > 0:
             # something error message
             message.send('{} players were disconnected. Something may be wrong with the binary '
@@ -1078,7 +1090,7 @@ def file_download(message):
 
 @listen_to('^clear$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def file_download(message):
+def clear_qualification_and_maillist(message):
     qualification_path = '{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH)
     if os.path.exists(qualification_path):
         with open(qualification_path, 'w') as _:
