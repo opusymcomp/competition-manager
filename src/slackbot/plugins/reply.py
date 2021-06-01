@@ -875,7 +875,7 @@ def file_download(message):
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
-            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
+            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
             bin_test_queue.remove(teamname)
             game_flag = False
             return
@@ -887,13 +887,13 @@ def file_download(message):
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
-            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
+            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir+filename)
             bin_test_queue.remove(teamname)
             game_flag = False
             return
     elif result == 'file type is not applicable.':
         message.reply('File type is not applicable.\n Applicable file type is tar.gz')
-        shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
+        shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         bin_test_queue.remove(teamname)
         game_flag = False
         return
@@ -905,13 +905,13 @@ def file_download(message):
     elif result == 'type null':
         message.reply(
             'Uploading binary may be too fast.\n please wait approx. 10 seconds after uploading binary is completed')
-        shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
+        shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         bin_test_queue.remove(teamname)
         game_flag = False
         return
     else:
         message.send('Uploading file is failed.')
-        shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
+        shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         bin_test_queue.remove(teamname)
         game_flag = False
         return
@@ -938,13 +938,13 @@ def file_download(message):
         teamfiles = os.listdir('{}{}'.format(temporary_dir, teamname))
         if "start" not in teamfiles:
             message.reply("There is no \'start\' script in your file.")
-            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
+            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
             bin_test_queue.remove(teamname)
             game_flag = False
             return
         if "kill" not in teamfiles:
             message.send("There is no \'kill\' script in your file.")
-            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
+            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
             bin_test_queue.remove(teamname)
             game_flag = False
             return
@@ -959,7 +959,7 @@ def file_download(message):
             "The structure of team directory is wrong or the name of team directory is different from \'{}\'".format(
                 teamname)
         )
-        shutil.move('{}{}'.format(temporary_dir, filename), failed_dir)
+        shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         bin_test_queue.remove(teamname)
         game_flag = False
         return
@@ -1062,15 +1062,20 @@ def file_download(message):
             message.send(msg)
 
             # move the succeeded team in qualified_dir
-            shutil.move('{}{}.tar.gz'.format(temporary_dir, teamname), '{}{}.tar.gz'.format(qualified_dir, teamname))
+            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(qualified_dir, filename))
+            if os.path.exists('{}{}'.format(qualified_dir, teamname)):
+                os.remove('{}{}'.format(qualified_dir, teamname))
+            shutil.move('{}{}'.format(temporary_dir, teamname), '{}{}'.format(qualified_dir, teamname))
 
         elif discon_p != '' and int(discon_p) > 0:
             # something error message
             message.send('{} players were disconnected. Something may be wrong with the binary '
                          'while it could successfully connected to rcssserver at the beginning of the game.'.format(
                 discon_p))
+            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         else:
             message.send('??? Something wrong ???')
+            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
     except Exception:
         # failed message
         msg = '{}:Binary test failed.'.format(teamname)
@@ -1078,6 +1083,7 @@ def file_download(message):
                                  message_str=msg,
                                  channels=[original_channel_id, organizer_channel_id],
                                  default_id=original_channel_id)
+        shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
 
     # move logfiles to competition-manager
     os.makedirs(LOG_DIR + 'test/', exist_ok=True)
