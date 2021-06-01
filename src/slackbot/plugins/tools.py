@@ -219,7 +219,8 @@ def getMatchResultMessage(match_dict, result_dict, focused_game_id):
 def getGroupMatchListMessage(group):
     teams = getTeamsInGroup(group)
     tmp_setting = {'teams': teams,
-                   'log_dir': 'tmp'}
+                   'log_dir': 'tmp',
+                   'teams_dir': '{}qualified_team'.format(COMPETITION_MANAGER_PATH)}
 
     # save as tmp yml in order to avoid overwriting the current tournament configuration
     tmp_yml_name = '{}config/check_matches.yml'.format(COMPETITION_MANAGER_PATH)
