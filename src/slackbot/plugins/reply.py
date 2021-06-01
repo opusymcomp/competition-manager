@@ -282,7 +282,7 @@ def cool_func(message):
     tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
     tl.rsync('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
     for teamname in tournament_conf['teams']:
-        tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+        tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(conf['server'], USERNAME))
         for h in tournament_conf['hosts']:
             tl.rsync('{}/{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(h, USERNAME))
 
