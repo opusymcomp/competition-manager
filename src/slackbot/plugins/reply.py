@@ -278,6 +278,7 @@ def cool_func(message):
 
     print('sync tournament scripts and teams...')
     tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
+    tl.rsync('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
     for teamname in tournament_conf['teams']:
         tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
         for h in tournament_conf['hosts']:
@@ -342,7 +343,7 @@ def cool_func(message):
         tl.saveYml(conf, '{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
         # simulate
-        group_match_sim = tl.startSimulate('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+        group_match_sim = tl.startSimulate(conf['server'], '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
 
         # save match list
         match_dict = {}
@@ -362,7 +363,7 @@ def cool_func(message):
         tl.saveYml(match_dict, '{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH))
 
         # start game
-        _ = tl.startGame('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+        _ = tl.startGame(conf['server'], '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
 
         # sync game logs to slackserver
         tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, conf['log_dir']), TOURNAMENT_PATH)
@@ -746,14 +747,25 @@ def listen_func(message):
         conf = tl.loadYml(yml_name)
         conf['log_dir'] = log_dir
         conf['teams'] = [t_team, 'agent2d']
-        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), conf)
+        tl.overwriteYml(yml_name, conf)
 
         # synch tournament script and teams
+        # sync to server
+        # sync tournament script
         tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
-        tl.rsync('{}/{}'.format(os.environ['HOME'], t_team),'{}:/home/{}'.format(conf['server'], USERNAME))
+        # sync config file of tournament
+        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/'[-1])))
+        # sync teams
+        tl.rsync('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(conf['server'], USERNAME))
         tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(conf['server'], USERNAME))
+
+        # sync to host
         for h in conf['hosts']:
+            # sync tournament script
             tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
+            # sync config file of tournament
+            tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/'[-1])))
+            # sync teams
             tl.rsync('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(h, USERNAME))
             tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
@@ -953,21 +965,31 @@ def file_download(message):
 
     # update qualification_test.yml
     tournament_conf['log_dir'] = log_dir
-    tournament_conf['teams_dir'] = os.environ['HOME']
+    tournament_conf['teams_dir'] = '/home/{}'.format(USERNAME)
     tournament_conf['teams'] = [teamname, 'agent2d']
     tournament_conf['server_conf'] = 'config/rcssserver/server_test.conf'
     tl.overwriteYml(yml_name, tournament_conf)
 
-    # sync tournament script and teams
+    # sync to server
+    # sync tournament script
     tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    # sync config file of tournament
+    tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/'[-1])))
+    # sync teams
     tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
     tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+
+    # sync to host
     for h in tournament_conf['hosts']:
+        # sync tournament script
         tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
+        # sync config file of tournament
+        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/'[-1])))
+        # sync teams
         tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
         tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
-    result_game = tl.startGame(tournament_conf['server'], yml_name)
+    result_game = tl.startGame(tournament_conf['server'], '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/'[-1])))
     print(result_game.stdout)
 
     # sync game logs to slackserver
