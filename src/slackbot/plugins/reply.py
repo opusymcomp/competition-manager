@@ -1038,13 +1038,13 @@ def file_download(message):
             if os.path.exists('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH)):
                 qualified_team = tl.getQualifiedTeams()
                 if teamname not in qualified_team:
-                    with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'a+') as q_txt_ad:
-                        q_txt_ad.writelines(teamname + ',' + upload_time + '\n')
+                    with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'a') as q_txt_ad:
+                        q_txt_ad.write(teamname + ',' + upload_time + '\n')
                 else:
                     # already qualified. update the last uploaded time
                     mod_q = []
                     for line in qualified_team:
-                        if teamname in line:
+                        if teamname == line:
                             tmp_line = teamname + ',' + upload_time + '\n'
                             mod_q.append(tmp_line)
                         else:
@@ -1053,7 +1053,7 @@ def file_download(message):
                         q_txt_ad.writelines(mod_q)
             else:
                 with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'w') as q_txt:
-                    q_txt.writelines(teamname + ',' + upload_time + '\n')
+                    q_txt.write(teamname + ',' + upload_time + '\n')
 
             # success message
             msg = '{}:Binary test succeeded.'.format(teamname)
