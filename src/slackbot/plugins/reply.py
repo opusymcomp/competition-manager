@@ -276,10 +276,12 @@ def cool_func(message):
     game_flag = True
     conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
+    print('sync tournament scripts and teams...')
+    tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(conf['server'], USERNAME))
     for teamname in tournament_conf['teams']:
-        tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+        tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
         for h in tournament_conf['hosts']:
-            tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
 
     """
     if conf['mode'] == 'single_match':
@@ -362,6 +364,9 @@ def cool_func(message):
         # start game
         _ = tl.startGame('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
+        # sync game logs to slackserver
+        tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, conf['log_dir']), TOURNAMENT_PATH)
+
     else:
         msg = 'Illegal game mode \'{}\'.'.format(conf['mode'])
         message.reply(msg)
@@ -421,6 +426,9 @@ def listen_func(message):
     global announce_flag
     announce_flag = True
     while game_flag:
+        # sync game logs
+        tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, conf['log_dir']), TOURNAMENT_PATH)
+
         if os.path.exists(tournament_log_dir):
             for n in os.listdir(tournament_log_dir):
                 if 'match' in n:
@@ -740,16 +748,21 @@ def listen_func(message):
         conf['teams'] = [t_team, 'agent2d']
         tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), conf)
 
-        # synch teams
-        tl.syncFiles('{}/{}'.format(os.environ['HOME'], t_team),'{}:/home/{}'.format(conf['server'], USERNAME))
-        tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(conf['server'], USERNAME))
+        # synch tournament script and teams
+        tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(conf['server'], USERNAME))
+        tl.rsync('{}/{}'.format(os.environ['HOME'], t_team),'{}:/home/{}'.format(conf['server'], USERNAME))
+        tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(conf['server'], USERNAME))
         for h in conf['hosts']:
-            tl.syncFiles('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(h, USERNAME))
-            tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
         message.send(t_team + ' test start')
         _ = tl.startGame(yml_name)
         message.send(t_team + ' test finish')
+
+        # sync game logs to slackserver
+        tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, conf['log_dir']), TOURNAMENT_PATH)
 
         # move logfiles to competition-manager
         os.makedirs(LOG_DIR + 'test/', exist_ok=True)
@@ -945,15 +958,20 @@ def file_download(message):
     tournament_conf['server_conf'] = 'config/rcssserver/server_test.conf'
     tl.overwriteYml(yml_name, tournament_conf)
 
-    # sync the uploaded team
-    tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
-    tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    # sync tournament script and teams
+    tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
     for h in tournament_conf['hosts']:
-        tl.syncFiles('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
-        tl.syncFiles('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
+        tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(h, USERNAME))
+        tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
+        tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
-    result_game = tl.startGame(yml_name)
+    result_game = tl.startGame(tournament_conf['server'], yml_name)
     print(result_game.stdout)
+
+    # sync game logs to slackserver
+    tl.rsync('{}:/home/{}/tournament/{}'.format(tournament_conf['server'], USERNAME, tournament_conf['log_dir']), TOURNAMENT_PATH)
 
     # analyze the test
     result_analyze = subprocess.run(['{}/test/analyze_test.sh'.format(COMPETITION_MANAGER_PATH),

@@ -21,8 +21,18 @@ def resCmd(cmd):
         shell=True).communicate()[0]
 
 
-def syncFiles(from_path, to_path):
-    return subprocess.run(['rsync -an {} {}'.format(from_path, to_path)],
+def rsync(from_path, to_path):
+    return subprocess.run(['rsync -au {} {}'.format(from_path, to_path)],
+                          encoding='utf-8', stdout=subprocess.PIPE, shell=True)
+
+
+def scp(from_path, to_path):
+    return subprocess.run(['scp -r {} {}'.format(from_path, to_path)],
+                          encoding='utf-8', stdout=subprocess.PIPE, shell=True)
+
+
+def cmdAtRemoteServer(server, cmd):
+    return subprocess.run(['ssh {} {}'.format(server, cmd)],
                           encoding='utf-8', stdout=subprocess.PIPE, shell=True)
 
 
@@ -156,23 +166,13 @@ def overwriteYml(path, added_info):
     saveYml(yaml_conf, path)
 
 
-def startGame(yml):
-    current_dir = os.getcwd()
-    os.chdir(TOURNAMENT_PATH)
-    result = subprocess.run([TOURNAMENT_PATH + 'start.sh',
-                             '--config=' + yml],
-                            encoding='utf-8', stdout=subprocess.PIPE)
-    os.chdir(current_dir)
+def startGame(server, yml):
+    result = cmdAtRemoteServer(server, 'cd tournament; ./start.sh --config={}'.format(yml))
     return result
 
 
-def startSimulate(yml):
-    current_dir = os.getcwd()
-    os.chdir(TOURNAMENT_PATH)
-    result = subprocess.run([TOURNAMENT_PATH + 'start.sh',
-                             '--config=' + yml + ' --simulate'],
-                            encoding='utf-8', stdout=subprocess.PIPE)
-    os.chdir(current_dir)
+def startSimulate(server, yml):
+    result = cmdAtRemoteServer(server, 'cd tournament; ./start.sh --config={} --simulate'.format(yml))
     return result
 
 
