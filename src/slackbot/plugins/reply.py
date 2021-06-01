@@ -366,7 +366,7 @@ def cool_func(message):
         _ = tl.startGame(conf['server'], '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
 
         # sync game logs to slackserver
-        tl.rsync('{}:/home/{}/tournament'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
+        tl.rsync('{}:/home/{}/tournament/'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
 
     else:
         msg = 'Illegal game mode \'{}\'.'.format(conf['mode'])
@@ -428,7 +428,7 @@ def listen_func(message):
     announce_flag = True
     while game_flag:
         # sync game logs
-        tl.rsync('{}:/home/{}/tournament'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
+        tl.rsync('{}:/home/{}/tournament/'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
 
         if os.path.exists(tournament_log_dir):
             for n in os.listdir(tournament_log_dir):
@@ -774,7 +774,7 @@ def listen_func(message):
         message.send(t_team + ' test finish')
 
         # sync game logs to slackserver
-        tl.rsync('{}:/home/{}/tournament'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
+        tl.rsync('{}:/home/{}/tournament/'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
 
         # move logfiles to competition-manager
         os.makedirs(LOG_DIR + 'test/', exist_ok=True)
@@ -993,7 +993,7 @@ def file_download(message):
     print(result_game.stdout)
 
     # sync game logs to slackserver
-    tl.rsync('{}:/home/{}/tournament'.format(tournament_conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
+    tl.rsync('{}:/home/{}/tournament/'.format(tournament_conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
 
     # analyze the test
     result_analyze = subprocess.run(['{}/test/analyze_test.sh'.format(COMPETITION_MANAGER_PATH),
