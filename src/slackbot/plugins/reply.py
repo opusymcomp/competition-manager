@@ -277,7 +277,7 @@ def cool_func(message):
     conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
     print('sync tournament scripts and teams...')
-    tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(conf['server'], USERNAME))
+    tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
     for teamname in tournament_conf['teams']:
         tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
         for h in tournament_conf['hosts']:
@@ -749,11 +749,11 @@ def listen_func(message):
         tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), conf)
 
         # synch tournament script and teams
-        tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(conf['server'], USERNAME))
+        tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
         tl.rsync('{}/{}'.format(os.environ['HOME'], t_team),'{}:/home/{}'.format(conf['server'], USERNAME))
         tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(conf['server'], USERNAME))
         for h in conf['hosts']:
-            tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
             tl.rsync('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(h, USERNAME))
             tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
@@ -959,11 +959,11 @@ def file_download(message):
     tl.overwriteYml(yml_name, tournament_conf)
 
     # sync tournament script and teams
-    tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
     tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
     tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
     for h in tournament_conf['hosts']:
-        tl.rsync(TOURNAMENT_PATH, '{}:/home/{}'.format(h, USERNAME))
+        tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
         tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
         tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
