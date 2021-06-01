@@ -939,12 +939,14 @@ def file_download(message):
         if "start" not in teamfiles:
             message.reply("There is no \'start\' script in your file.")
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+            shutil.rmtree('{}{}'.format(temporary_dir, teamname))
             bin_test_queue.remove(teamname)
             game_flag = False
             return
         if "kill" not in teamfiles:
             message.send("There is no \'kill\' script in your file.")
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+            shutil.rmtree('{}{}'.format(temporary_dir, teamname))
             bin_test_queue.remove(teamname)
             game_flag = False
             return
@@ -960,6 +962,7 @@ def file_download(message):
                 teamname)
         )
         shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+        shutil.rmtree('{}{}'.format(temporary_dir, teamname))
         bin_test_queue.remove(teamname)
         game_flag = False
         return
@@ -1073,9 +1076,11 @@ def file_download(message):
                          'while it could successfully connected to rcssserver at the beginning of the game.'.format(
                 discon_p))
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+            shutil.rmtree('{}{}'.format(temporary_dir, teamname))
         else:
             message.send('??? Something wrong ???')
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+            shutil.rmtree('{}{}'.format(temporary_dir, teamname))
     except Exception:
         # failed message
         msg = '{}:Binary test failed.'.format(teamname)
@@ -1084,6 +1089,7 @@ def file_download(message):
                                  channels=[original_channel_id, organizer_channel_id],
                                  default_id=original_channel_id)
         shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+        shutil.rmtree('{}{}'.format(temporary_dir, teamname))
 
     # move logfiles to competition-manager
     os.makedirs(LOG_DIR + 'test/', exist_ok=True)
