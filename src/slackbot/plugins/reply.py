@@ -852,7 +852,7 @@ def file_download(message):
 
     # failed team directory that failed the binary test
     failed_dir = COMPETITION_MANAGER_PATH + 'failed_team/'
-    os.makedirs(qualified_dir, exist_ok=True)
+    os.makedirs(failed_dir, exist_ok=True)
 
     # temporary place in order to avoid illegal upload
     temporary_dir = COMPETITION_MANAGER_PATH + 'uploaded_team/'
