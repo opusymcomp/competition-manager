@@ -1067,7 +1067,7 @@ def file_download(message):
             # move the succeeded team in qualified_dir
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(qualified_dir, filename))
             if os.path.exists('{}{}'.format(qualified_dir, teamname)):
-                os.remove('{}{}'.format(qualified_dir, teamname))
+                shutil.rmtree('{}{}'.format(qualified_dir, teamname))
             shutil.move('{}{}'.format(temporary_dir, teamname), '{}{}'.format(qualified_dir, teamname))
 
         elif discon_p != '' and int(discon_p) > 0:
