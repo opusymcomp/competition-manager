@@ -173,8 +173,15 @@ def startGame(server, yml):
 
 
 def startSimulate(server, yml):
-    cmd = '\"cd tournament; ./start.sh --config={} --simulate\"'.format(yml)
-    result = cmdAtRemoteServer(server, cmd)
+    if server is None:
+        current_dir = os.curdir
+        os.chdir(TOURNAMENT_PATH)
+        result = subprocess.run(['./start.sh --config={} --simulate'.format(yml)],
+                                encoding='utf-8', stdout=subprocess.PIPE, shell=True)
+        os.chdir(current_dir)
+    else:
+        cmd = '\"cd tournament; ./start.sh --config={} --simulate\"'.format(yml)
+        result = cmdAtRemoteServer(server, cmd)
     return result
 
 
@@ -217,9 +224,9 @@ def getGroupMatchListMessage(group):
     # save as tmp yml in order to avoid overwriting the current tournament configuration
     tmp_yml_name = '{}config/check_matches.yml'.format(COMPETITION_MANAGER_PATH)
     overwriteYml(tmp_yml_name, tmp_setting)
-    group_match_sim = startSimulate(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
+    group_match_sim = startSimulate(None, tmp_yml_name)
     tmp_yml = loadYml(tmp_yml_name)
-    os.remove(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
+    os.remove(tmp_yml_name)
 
     print(group_match_sim.stdout)
 
