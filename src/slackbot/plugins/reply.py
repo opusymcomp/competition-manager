@@ -754,7 +754,7 @@ def listen_func(message):
         # sync tournament script
         tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
         # sync config file of tournament
-        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/',[-1])))
+        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
         # sync teams
         tl.rsync('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(conf['server'], USERNAME))
         tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(conf['server'], USERNAME))
@@ -764,13 +764,13 @@ def listen_func(message):
             # sync tournament script
             tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
             # sync config file of tournament
-            tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/',[-1])))
+            tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
             # sync teams
             tl.rsync('{}/{}'.format(os.environ['HOME'], t_team), '{}:/home/{}'.format(h, USERNAME))
             tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
         message.send(t_team + ' test start')
-        _ = tl.startGame(yml_name)
+        _ = tl.startGame(conf['server'], yml_name)
         message.send(t_team + ' test finish')
 
         # sync game logs to slackserver
@@ -974,7 +974,7 @@ def file_download(message):
     # sync tournament script
     tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
     # sync config file of tournament
-    tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/', [-1])))
+    tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
     # sync teams
     tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
     tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
@@ -984,12 +984,12 @@ def file_download(message):
         # sync tournament script
         tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
         # sync config file of tournament
-        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/', [-1])))
+        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
         # sync teams
         tl.rsync('{}/{}'.format(os.environ['HOME'], teamname), '{}:/home/{}'.format(h, USERNAME))
         tl.rsync('{}/agent2d'.format(os.environ['HOME']), '{}:/home/{}'.format(h, USERNAME))
 
-    result_game = tl.startGame(tournament_conf['server'], '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/', [-1])))
+    result_game = tl.startGame(tournament_conf['server'], '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/')[-1]))
     print(result_game.stdout)
 
     # sync game logs to slackserver
