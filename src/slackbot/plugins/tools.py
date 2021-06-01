@@ -167,12 +167,14 @@ def overwriteYml(path, added_info):
 
 
 def startGame(server, yml):
-    result = cmdAtRemoteServer(server, 'cd tournament; ./start.sh --config={}'.format(yml))
+    cmd = '\"cd tournament; ./start.sh --config={}\"'.format(yml)
+    result = cmdAtRemoteServer(server, cmd)
     return result
 
 
 def startSimulate(server, yml):
-    result = cmdAtRemoteServer(server, 'cd tournament; ./start.sh --config={} --simulate'.format(yml))
+    cmd = '\"cd tournament; ./start.sh --config={} --simulate\"'.format(yml)
+    result = cmdAtRemoteServer(server, cmd)
     return result
 
 
