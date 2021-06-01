@@ -962,7 +962,7 @@ def file_download(message):
                 teamname)
         )
         shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
-        shutil.rmtree('{}{}'.format(temporary_dir, teamname))
+        shutil.rmtree('{}'.format(temporary_dir))  # remove all files because bot cannot specified the problem-files.
         bin_test_queue.remove(teamname)
         game_flag = False
         return
