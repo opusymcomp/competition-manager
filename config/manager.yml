@@ -3,6 +3,9 @@ competition_manager_path: /path/to/competition-manager/
 loganalyzer_path: /path/to/loganalyzer3/
 tournament_path: /path/to/tournament/
 
+# username of servers and hosts
+username: robocup
+
 # API setting
 slack_api_token: [slack_token]
 dropbox_access_token: [dropbox_token]
@@ -19,7 +22,8 @@ announce_channel_name: [announce_ch]
 
 # competition options
 competition_name: [Competition name]
-# !!!!! teams are saved on HOME directory.
-#       The following setting are used to save archives!!!!! #
+# !!!!!
+# teams are saved on HOME directory.
+# The following setting are used to save archives at the competition-manager server. !!!!!
 teams_dir: /path/to/archive/teams/
 log_dir: /path/to/archive/logs/

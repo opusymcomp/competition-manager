@@ -21,6 +21,21 @@ def resCmd(cmd):
         shell=True).communicate()[0]
 
 
+def rsync(from_path, to_path):
+    return subprocess.run(['rsync -au {} {}'.format(from_path, to_path)],
+                          encoding='utf-8', stdout=subprocess.PIPE, shell=True)
+
+
+def scp(from_path, to_path):
+    return subprocess.run(['scp -r {} {}'.format(from_path, to_path)],
+                          encoding='utf-8', stdout=subprocess.PIPE, shell=True)
+
+
+def cmdAtRemoteServer(server, cmd):
+    return subprocess.run(['ssh {} {}'.format(server, cmd)],
+                          encoding='utf-8', stdout=subprocess.PIPE, shell=True)
+
+
 def getHelpMessageForOrganizers():
     msg = '[Command list]\n' \
           ' -team : Show qualified team that succeeded the binary test.\n' \
@@ -136,12 +151,12 @@ def overwriteYml(path, added_info):
                      'log_dir': 'log',
                      'match_sleep': 2,
                      'mode': 'group',
-                     'player_conf': 'config/rcssserver/player_official.conf'.format(TOURNAMENT_PATH),
-                     'server_conf': 'config/rcssserver/server_official.conf'.format(TOURNAMENT_PATH),
+                     'player_conf': 'config/rcssserver/player_official.conf',
+                     'server_conf': 'config/rcssserver/server_official.conf',
                      'shutdown_sleep': 2,
                      'team_mode': 'official',
                      'teams': ['', ''],
-                     'teams_dir': os.environ['HOME'],
+                     'teams_dir': '/home/{}'.format(USERNAME),
                      'title': COMPETITION_NAME
                      }
 
@@ -151,23 +166,22 @@ def overwriteYml(path, added_info):
     saveYml(yaml_conf, path)
 
 
-def startGame(yml):
-    current_dir = os.getcwd()
-    os.chdir(TOURNAMENT_PATH)
-    result = subprocess.run([TOURNAMENT_PATH + 'start.sh',
-                             '--config=' + yml],
-                            encoding='utf-8', stdout=subprocess.PIPE)
-    os.chdir(current_dir)
+def startGame(server, yml):
+    cmd = '\"cd tournament; ./start.sh --config={}\"'.format(yml)
+    result = cmdAtRemoteServer(server, cmd)
     return result
 
 
-def startSimulate(yml):
-    current_dir = os.getcwd()
-    os.chdir(TOURNAMENT_PATH)
-    result = subprocess.run([TOURNAMENT_PATH + 'start.sh',
-                             '--config=' + yml + ' --simulate'],
-                            encoding='utf-8', stdout=subprocess.PIPE)
-    os.chdir(current_dir)
+def startSimulate(server, yml):
+    if server is None:
+        current_dir = os.curdir
+        os.chdir(TOURNAMENT_PATH)
+        result = subprocess.run(['./start.sh --config={} --simulate'.format(yml)],
+                                encoding='utf-8', stdout=subprocess.PIPE, shell=True)
+        os.chdir(current_dir)
+    else:
+        cmd = '\"cd tournament; ./start.sh --config={} --simulate\"'.format(yml)
+        result = cmdAtRemoteServer(server, cmd)
     return result
 
 
@@ -205,14 +219,15 @@ def getMatchResultMessage(match_dict, result_dict, focused_game_id):
 def getGroupMatchListMessage(group):
     teams = getTeamsInGroup(group)
     tmp_setting = {'teams': teams,
-                   'log_dir': 'tmp'}
+                   'log_dir': 'tmp',
+                   'teams_dir': '{}qualified_team'.format(COMPETITION_MANAGER_PATH)}
 
     # save as tmp yml in order to avoid overwriting the current tournament configuration
     tmp_yml_name = '{}config/check_matches.yml'.format(COMPETITION_MANAGER_PATH)
     overwriteYml(tmp_yml_name, tmp_setting)
-    group_match_sim = startSimulate(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
+    group_match_sim = startSimulate(None, tmp_yml_name)
     tmp_yml = loadYml(tmp_yml_name)
-    os.remove(tmp_yml_name.format(COMPETITION_MANAGER_PATH))
+    os.remove(tmp_yml_name)
 
     print(group_match_sim.stdout)
 
