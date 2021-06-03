@@ -18,7 +18,7 @@ dbx_flag = False
 google_drive_flag = False
 discordbot_flag = False
 announce_flag = False
-game_flag = False
+current_server_status = {}  # the server's ip-address and the assigned group-name will be appended
 recovery_mode = False
 
 if dbx_flag:
@@ -250,51 +250,57 @@ def set_roundrobin_title(message):
 @listen_to(r'^start \w+')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def cool_func(message):
-    global game_flag
-    if game_flag:
-        message.reply('a game is conducted now.')
+    if not os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
+        message.reply('{}config/tournament.yml does not exist. Please setup tournament settings by '
+                      '\'server\' and \'host\' commands before using this command'.format(COMPETITION_MANAGER_PATH))
+        return
+
+    # check game server availability
+    tmp_tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+    target_server_ip = tmp_tournament_yml['server']
+    global current_server_status
+    if target_server_ip in current_server_status.keys():
+        message.reply('a game is conducted now at {} (tournament:{}).'.format(target_server_ip,
+                                                                              current_server_status[target_server_ip]))
         return
 
     if bin_flag:
         message.reply('Binary upload must be prohibit by the command \'binary upload end\'.')
         return
 
-    # startgroup = message.body['text']
-    # group = ''.join(startgroup[6:])
-
     txt_list = message.body['text'].split()
-    if len(txt_list) == 2 and 'group' in txt_list[1]:
-        group = txt_list[1]
-    else:
-        msg = tl.getHelpMessageForOrganizers()
-        message.reply(msg)
+
+    if len(txt_list) != 2:
+        message.reply(tl.getHelpMessageForOrganizers())
         return
 
+    group = txt_list[-1]
     tournament_conf = {}
     dt_start = datetime.datetime.now().strftime('%Y%m%d%H%M')
 
-    if len(txt_list) == 2 and 'group' in group:
-        if os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
-            teams = tl.getTeamsInGroup(group)
-            if len(teams) == 0:
-                msg = '\'{}\' is empty. Please create groups by \'group\' command before using this command.'.format(group)
-                message.reply(msg)
-                return
-            tournament_conf['log_dir'] = '{}/{}'.format(dt_start, group)
-            tournament_conf['teams'] = teams
-        else:
-            message.reply('{}config/tournament.yml does not exist. Please setup tournament settings by '
-                          '\'server\' and \'host\' commands before using this command'.format(COMPETITION_MANAGER_PATH))
-            return
-    else:
-        message.reply(tl.getHelpMessageForOrganizers())
+    teams = tl.getTeamsInGroup(group)
+    if len(teams) == 0:
+        msg = '\'{}\' is empty. Please create groups by \'group\' command before using this command.'.format(group)
+        message.reply(msg)
         return
+    for ipaddress, executing_group in current_server_status.items():
+        if executing_group == group:
+            msg = '\'{}\' is conducted at {}'.format(group, ipaddress)
+            message.reply(msg)
+            return
+    if os.path.exists('{}{}/{}'.format(LOG_DIR, tmp_tournament_yml['title'], group)):
+        msg = '\'{}\' is already finished'.format(group)
+        message.reply(msg)
+        return
+
+    tournament_conf['log_dir'] = '{}/{}'.format(dt_start, group)
+    tournament_conf['teams'] = teams
 
     tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), tournament_conf)
 
     msg = tl.getGroupMatchListMessage(group)
     # msg = group + ' tournament starts soon \n' \
-        #  'Start time : ' + dt_start + '\nI will notify you when all games are finished.\n'
+    #  'Start time : ' + dt_start + '\nI will notify you when all games are finished.\n'
 
     message.react('+1')
     original_channel_id = message.body['channel']
@@ -306,14 +312,17 @@ def cool_func(message):
     if discordbot_flag:
         tl.sendMessageToDiscordChannel(msg)
 
-    game_flag = True
+    # set current server status
+    current_server_status[target_server_ip] = group
+
     conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
 
     qualified_dir = "{}qualified_team/".format(COMPETITION_MANAGER_PATH)
 
     print('sync tournament scripts and teams...')
     tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
-    tl.rsync('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
+    tl.rsync('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH),
+             '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
     for teamname in conf['teams']:
         tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(conf['server'], USERNAME))
         for h in conf['hosts']:
@@ -424,7 +433,7 @@ def cool_func(message):
     if google_drive_flag:
         msg += '\n logs are available here. https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
 
-    game_flag = False
+    current_server_status.pop(target_server_ip)
 
     # wait for finishing announce
     while True:
@@ -432,8 +441,8 @@ def cool_func(message):
             break
 
     # copy the game log files
-    os.makedirs(LOG_DIR+conf['title'], exist_ok=True)
-    copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), LOG_DIR+conf['title'])
+    os.makedirs(LOG_DIR + conf['title'], exist_ok=True)
+    copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), LOG_DIR + conf['title'])
     os.makedirs(LOG_DIR + 'archive/', exist_ok=True)
     shutil.move('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}archive'.format(LOG_DIR))
 
@@ -455,6 +464,7 @@ def listen_func(message):
         return
 
     conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+    target_server_ip = conf['server']
     tournament_log_dir = '{}{}/'.format(TOURNAMENT_PATH, conf['log_dir'])
     match_dict = tl.loadYml('{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH))
     dt_start = conf['log_dir'].split('/')[0]
@@ -467,7 +477,8 @@ def listen_func(message):
     progress_flag = False
     global announce_flag
     announce_flag = True
-    while game_flag:
+    global current_server_status
+    while target_server_ip in current_server_status.keys():
         # sync game logs
         tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, dt_start),
                  TOURNAMENT_PATH.rstrip('/'))
@@ -674,7 +685,7 @@ def listen_func(message):
     global dbx_flag
     global google_drive_flag
     global discordbot_flag
-    global game_flag
+    global current_server_status
     global announce_flag
     global bin_test_queue
 
@@ -683,12 +694,17 @@ def listen_func(message):
           ' -dropbox_flag: {}\n' \
           ' -google_drive_flag: {}\n' \
           ' -discordbot flag: {}\n' \
-          ' -game_flag: {}\n' \
+          ' -current_server_status: {}\n' \
           ' -announce_flag: {}\n' \
           ' -bin_test_queue: {}\n' \
-          ' -recovery_mode: {}'.format(bin_flag, dbx_flag, google_drive_flag,
-                                       discordbot_flag, game_flag, announce_flag,
-                                       ','.join(bin_test_queue), recovery_mode)
+          ' -recovery_mode: {}'.format(bin_flag,
+                                       dbx_flag,
+                                       google_drive_flag,
+                                       discordbot_flag,
+                                       current_server_status,
+                                       announce_flag,
+                                       ','.join(bin_test_queue),
+                                       recovery_mode)
     message.reply(msg)
 
 
@@ -767,30 +783,38 @@ def listen_func(message):
 def listen_func(message):
     success = True
     txt_list = message.body['text'].split()
-    if len(txt_list) == 2:
-        if txt_list[1] == 'all' or txt_list == '*':
-            test_teams = tl.getQualifiedTeams()
-        else:
-            test_teams = txt_list[1].split(',')
-            qualified_teams = tl.getQualifiedTeams()
-            for team in test_teams:
-                if team not in qualified_teams:
-                    message.reply(team + ' is not in qualifications.')
-                    success = False
-    else:
-        success = False
-
-    if not success:
+    if len(txt_list) != 2:
         msg = tl.getHelpMessageForOrganizers()
         message.send(msg)
         return
 
-    global game_flag
-    if game_flag:
-        message.send('a game is conducted now.')
+    if txt_list[1] == 'all' or txt_list == '*':
+        test_teams = tl.getQualifiedTeams()
+    else:
+        test_teams = txt_list[1].split(',')
+        qualified_teams = tl.getQualifiedTeams()
+        for team in test_teams:
+            if team not in qualified_teams:
+                message.reply(team + ' is not in qualifications.')
+                msg = tl.getHelpMessageForOrganizers()
+                message.send(msg)
+                return
+
+    yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
+    if not os.path.exists(yml_name):
+        msg = 'No qualification_test.yml. Please use \'server\', \'host\' and \'group\' commands before use this command.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
         return
 
-    game_flag = True
+    target_server_ip = tl.loadYml(yml_name)['server']
+
+    global current_server_status
+    if target_server_ip in current_server_status.keys():
+        message.send('a game is conducted now at {}'.format(target_server_ip))
+        return
+
+    current_server_status[target_server_ip] = "test"
 
     global stop_flag
     stop_flag = False
@@ -824,7 +848,8 @@ def listen_func(message):
             # sync tournament script
             tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
             # sync config file of tournament
-            tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
+            tl.rsync(yml_name,
+                     '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
             # sync teams
             tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(h, USERNAME))
             tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME))
@@ -846,7 +871,7 @@ def listen_func(message):
                     '{}test/{}/{}'.format(LOG_DIR, t_team, time))
 
     message.send('test complete')
-    game_flag = False
+    current_server_status.pop(target_server_ip)
 
 
 @listen_to(r'^stop test$')
@@ -867,14 +892,22 @@ def file_download(message):
     original_channel_id = message.body['channel']
     organizer_channel_id = tl.getChannelID(message, ORGANIZER_CHANNEL_NAME)
 
+    yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
+    if not os.path.exists(yml_name):
+        msg = 'No qualification_test.yml. Please use \'server\', \'host\' and \'group\' commands before use this command.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
     global bin_flag
     if not bin_flag:
         msg = 'Binary upload is not allowed now.'
         message.reply(msg)
         return
 
-    list_flag, only_mail_flag, only_team_flag, tmp_team = tl.checkRegistration('{}config/maillist.txt'.format(COMPETITION_MANAGER_PATH),
-                                                                               email, teamname)
+    list_flag, only_mail_flag, only_team_flag, tmp_team = tl.checkRegistration(
+        '{}config/maillist.txt'.format(COMPETITION_MANAGER_PATH),
+        email, teamname)
     if not list_flag:
         if only_team_flag:
             msg = 'Only the team leader can upload team binary.'
@@ -892,10 +925,11 @@ def file_download(message):
         return
     bin_test_queue.append(teamname)
 
+    target_server_ip = tl.loadYml(yml_name)['server']
     is_first_comment = False
-    global game_flag
+    global current_server_status
     while True:
-        if game_flag:
+        if target_server_ip in current_server_status.keys():
             if not is_first_comment:
                 msg = 'Another team is testing now.\n Please wait for a moment...'
                 message.reply(msg)
@@ -904,7 +938,7 @@ def file_download(message):
         else:
             break
 
-    game_flag = True
+    current_server_status[target_server_ip] = 'test'
     if is_first_comment:
         msg = 'Sorry for late testing. Your binary test starts soon.'
         message.reply(msg)
@@ -940,7 +974,7 @@ def file_download(message):
                                      default_id=original_channel_id)
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
             bin_test_queue.remove(teamname)
-            game_flag = False
+            current_server_status.pop(target_server_ip)
             return
         # !!! Assumption that uploaded files have more than 100 bytes
         file_size = os.path.getsize('{}{}'.format(temporary_dir, filename))
@@ -950,33 +984,33 @@ def file_download(message):
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
-            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir+filename)
+            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir + filename)
             bin_test_queue.remove(teamname)
-            game_flag = False
+            current_server_status.pop(target_server_ip)
             return
     elif result == 'file type is not applicable.':
         message.reply('File type is not applicable.\n Applicable file type is tar.gz')
         shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         bin_test_queue.remove(teamname)
-        game_flag = False
+        current_server_status.pop(target_server_ip)
         return
     elif result == 'empty':
         message.reply('Attached file is not exist.')
         bin_test_queue.remove(teamname)
-        game_flag = False
+        current_server_status.pop(target_server_ip)
         return
     elif result == 'type null':
         message.reply(
             'Uploading binary may be too fast.\n please wait approx. 10 seconds after uploading binary is completed')
         shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         bin_test_queue.remove(teamname)
-        game_flag = False
+        current_server_status.pop(target_server_ip)
         return
     else:
         message.send('Uploading file is failed.')
         shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         bin_test_queue.remove(teamname)
-        game_flag = False
+        current_server_status.pop(target_server_ip)
         return
 
     msg = 'Binary upload succeeded.'
@@ -994,7 +1028,7 @@ def file_download(message):
     if 'Error is not recoverable' in extract.stdout:
         message.reply("Uploaded file cannot be extracted. Please check the contents of the uploaded file.")
         bin_test_queue.remove(teamname)
-        game_flag = False
+        current_server_status.pop(target_server_ip)
         return
 
     if os.path.isdir('{}{}'.format(temporary_dir, teamname)):
@@ -1004,14 +1038,14 @@ def file_download(message):
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
             shutil.rmtree('{}{}'.format(temporary_dir, teamname))
             bin_test_queue.remove(teamname)
-            game_flag = False
+            current_server_status.pop(target_server_ip)
             return
         if "kill" not in teamfiles:
             message.send("There is no \'kill\' script in your file.")
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
             shutil.rmtree('{}{}'.format(temporary_dir, teamname))
             bin_test_queue.remove(teamname)
-            game_flag = False
+            current_server_status.pop(target_server_ip)
             return
         if "team.yml" not in teamfiles:
             ty_dict = {"country": teamname}
@@ -1027,7 +1061,7 @@ def file_download(message):
         shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         shutil.rmtree('{}'.format(temporary_dir))  # remove all files because bot cannot specified the problem-files.
         bin_test_queue.remove(teamname)
-        game_flag = False
+        current_server_status.pop(target_server_ip)
         return
 
     message.reply('Test game starts in about 2 minutes')
@@ -1049,22 +1083,26 @@ def file_download(message):
     # sync tournament script
     tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
     # sync config file of tournament
-    tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
+    tl.rsync(yml_name,
+             '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
     # sync teams
     tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
-    tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH),
+             '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
 
     # sync to host
     for h in tournament_conf['hosts']:
         # sync tournament script
         tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
         # sync config file of tournament
-        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
+        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME,
+                                                                     yml_name.split('/')[-1]))
         # sync teams
         tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(h, USERNAME))
         tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME))
 
-    result_game = tl.startGame(tournament_conf['server'], '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/')[-1]))
+    result_game = tl.startGame(tournament_conf['server'],
+                               '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/')[-1]))
     print(result_game.stdout)
 
     # sync game logs to slackserver
@@ -1091,7 +1129,7 @@ def file_download(message):
         msg = 'the team name is different from \'{}\''.format(teamname)
         message.reply(msg)
         bin_test_queue.remove(teamname)
-        game_flag = False
+        current_server_status.pop(target_server_ip)
         return
 
     # check disconnected players
@@ -1164,7 +1202,7 @@ def file_download(message):
 
     # reset game flag and bin-test-que
     bin_test_queue.remove(teamname)
-    game_flag = False
+    current_server_status.pop(target_server_ip)
 
 
 @listen_to('^clear$')
@@ -1260,11 +1298,11 @@ def switch_recovery_mode(message):
     return
 
 
-@listen_to('^reset gameflag$')
+@listen_to('^reset gameflag*$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def reset_gameflag(message):
     txt_list = message.body['text'].split()
-    if len(txt_list) != 2:
+    if len(txt_list) != 3:
         msg = 'Illegal input\n'
         msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
@@ -1277,8 +1315,14 @@ def reset_gameflag(message):
         message.reply(msg)
         return
 
-    global game_flag
-    game_flag = False
+    target_server_ip = txt_list[-1]
+    global current_server_status
+    if not target_server_ip in current_server_status.keys():
+        msg = '{} is alreagy free.'.format(target_server_ip)
+        message.reply(msg)
+        return
+
+    current_server_status.pop(target_server_ip)
 
 
 @listen_to('^reset test queue \w+$')
