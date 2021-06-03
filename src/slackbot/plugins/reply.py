@@ -834,11 +834,16 @@ def listen_func(message):
         message.send(t_team + ' test finish')
 
         # sync game logs to slackserver
-        tl.rsync('{}:/home/{}/tournament/log'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
+        tl.rsync('{}:/home/{}/tournament/log'.format(conf['server'], USERNAME),
+                 TOURNAMENT_PATH.rstrip('/'))
+        # remove game logs in rcssserver
+        tl.cmdAtRemoteServer(conf['server'],
+                             'rm -r /home/{}/tournament/log'.format(USERNAME))
 
         # move logfiles to competition-manager
         os.makedirs(LOG_DIR + 'test/', exist_ok=True)
-        shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir), '{}test/{}/{}'.format(LOG_DIR, t_team, time))
+        shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir),
+                    '{}test/{}/{}'.format(LOG_DIR, t_team, time))
 
     message.send('test complete')
     game_flag = False
@@ -1063,7 +1068,11 @@ def file_download(message):
     print(result_game.stdout)
 
     # sync game logs to slackserver
-    tl.rsync('{}:/home/{}/tournament/'.format(tournament_conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
+    tl.rsync('{}:/home/{}/tournament/log'.format(tournament_conf['server'], USERNAME),
+             TOURNAMENT_PATH.rstrip('/'))
+    # remove game logs in rcssserver
+    tl.cmdAtRemoteServer(tournament_conf['server'],
+                         'rm -r /home/{}/tournament/log'.format(USERNAME))
 
     # analyze the test
     result_analyze = subprocess.run(['{}/test/analyze_test.sh'.format(COMPETITION_MANAGER_PATH),
