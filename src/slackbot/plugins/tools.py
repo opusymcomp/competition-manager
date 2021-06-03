@@ -288,7 +288,7 @@ def sendMessageToChannels(message, message_str, channels, default_id):
 
 
 def sendMessageToDiscordChannel(message_str, channel_id):
-    p = subprocess.run(['python {}src/discordbot/run.py \'{}\''.format(COMPETITION_MANAGER_PATH, message_str, channel_id)],
+    p = subprocess.run(['python {}src/discordbot/run.py \'{}\' {}'.format(COMPETITION_MANAGER_PATH, message_str, channel_id)],
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          shell=True)
