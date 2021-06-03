@@ -836,14 +836,14 @@ def listen_func(message):
     msg = 'Team leaders can upload team binary now.'
 
     original_channel_id = message.body['channel']
-    announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME]
+    announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME.values()]
     announce_channel_id.append(original_channel_id)
     tl.sendMessageToChannels(message=message,
                              message_str=msg,
                              channels=announce_channel_id,
                              default_id=original_channel_id)
     if discordbot_flag:
-        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME]
+        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME.values()]
         for c in announce_channel_id:
             tl.sendMessageToDiscordChannel(msg, c)
 
@@ -868,7 +868,7 @@ def listen_func(message):
         shutil.copy2(team_path, archive_team_dir)
 
     original_channel_id = message.body['channel']
-    announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME]
+    announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME.values()]
     announce_channel_id.append(original_channel_id)
     msg = 'Team binaries cannot be uploaded now.'
     tl.sendMessageToChannels(message=message,
@@ -876,7 +876,7 @@ def listen_func(message):
                              channels=announce_channel_id,
                              default_id=original_channel_id)
     if discordbot_flag:
-        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME]
+        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME.values()]
         for c in announce_channel_id:
             tl.sendMessageToDiscordChannel(msg, c)
 
@@ -1368,7 +1368,7 @@ def file_upload(message):
     msg = '{} are available at https://drive.google.com/drive/folders/{}'.format(msg, GOOGLE_DRIVE_FOLDER_ID)
 
     original_channel_id = message.body['channel']
-    announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME]
+    announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME.values()]
     announce_channel_id.append(original_channel_id)
 
     tl.sendMessageToChannels(message=message,
@@ -1376,7 +1376,7 @@ def file_upload(message):
                              channels=announce_channel_id,
                              default_id=original_channel_id)
     if discordbot_flag:
-        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME]
+        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME.values()]
         for c in announce_channel_id:
             tl.sendMessageToDiscordChannel(msg, c)
 

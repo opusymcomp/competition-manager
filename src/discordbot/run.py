@@ -9,7 +9,8 @@ client = discord.Client()
 
 @client.event
 async def on_ready():
-    channel = client.get_channel(sys.argv[2])
+    await client.wait_until_ready()
+    channel = client.get_channel(int(sys.argv[2]))
     await channel.send(sys.argv[1])
 
 
