@@ -34,3 +34,5 @@ rm ${competition_manager_path}config/match_list.yml
 rm ${competition_manager_path}config/qualification.txt
 rm ${competition_manager_path}config/qualification_test.yml
 rm ${competition_manager_path}config/tournament.yml
+rm ${competition_manager_path}config/match_list_*.yml
+rm ${competition_manager_path}config/tournament_*.yml
