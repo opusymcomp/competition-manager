@@ -1,5 +1,6 @@
 # coding: utf-8
 import datetime
+import os
 import subprocess
 import shutil
 from distutils.dir_util import copy_tree
@@ -199,7 +200,7 @@ def listen_func(message):
             tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
             msg = 'server\n-' + tournament_yml['server']
         else:
-            msg = '{}config/tournament.yml is not exist. Please set server by \'server\' command (e.g. server 127.0.0.1)\n'.format(
+            msg = '{}config/tournament.yml does not exist. Please set server by \'server\' command (e.g. server 127.0.0.1)\n'.format(
                 COMPETITION_MANAGER_PATH)
             msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
@@ -211,6 +212,63 @@ def listen_func(message):
         tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), server_yaml)
         tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), server_yaml)
         message.reply('server is updated')
+
+
+@listen_to(r'^channel*')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def listen_func(message):
+    setting = message.body['text'].split()
+    if len(setting) == 1:
+        if setting[0] == 'channel':
+            ans_flag = 'status'
+        else:
+            ans_flag = 'help'
+    elif len(setting) == 2:
+        if len(setting[1].split(',')) != 2:
+            ans_flag = 'status'
+        else:
+            ans_flag = 'set'
+    else:
+        ans_flag = 'help'
+
+    if ans_flag == 'help':
+        message.reply(tl.getHelpMessageForOrganizers())
+        return
+    elif ans_flag == 'status':
+        if os.path.exists('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH)):
+            channel_yml = tl.loadYml('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
+            if len(setting) == 1:
+                msg = 'channel\n'
+                for key, value in channel_yml.items():
+                    msg += ' -{}: {}\n'.format(key, value)
+            else:
+                if setting[1] in channel_yml.keys():
+                    msg = 'channel of {}\n-{}'.format(setting[1], channel_yml[setting[1]])
+                else:
+                    msg = 'channel of {} is not assined.'.format(setting[1])
+        else:
+            msg = '{}config/channel.yml does not exist. Please setup channel by \'channel\'' \
+                  ' command (e.g. channel groupA main_tournament_channel)\n'.format(COMPETITION_MANAGER_PATH)
+            msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    elif ans_flag == 'set':
+        group = setting[1].split(',')[0]
+        channel = setting[1].split(',')[1]
+        if channel not in ANNOUNCE_CHANNEL_NAME.keys():
+            msg = 'Cannot set \'{}\' as the announcement channel. You can choose the channel from the following channel-list' \
+                  ' (defined in config/manager.yml)\n'.format(channel)
+            msg += ','.join(ANNOUNCE_CHANNEL_NAME.keys())
+            message.reply(msg)
+            return
+        if os.path.exists('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH)):
+            channel_yml = tl.loadYml('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
+            channel_yml[group] = channel
+        else:
+            channel_yml = {group: channel}
+        tl.saveYml(channel_yml, '{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
+        message.reply('channel is updated')
 
 
 @listen_to(r'^roundrobin title*')
@@ -254,10 +312,14 @@ def cool_func(message):
         message.reply('{}config/tournament.yml does not exist. Please setup tournament settings by '
                       '\'server\' and \'host\' commands before using this command'.format(COMPETITION_MANAGER_PATH))
         return
+    if not os.path.exists('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH)):
+        message.reply('{}config/channel.yml does not exist. Please setup channel setting by \'channel\' command before using this command'.format(COMPETITION_MANAGER_PATH))
+        return
+    channel_conf = tl.loadYml('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
 
     # check game server availability
-    tmp_tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
-    target_server_ip = tmp_tournament_yml['server']
+    tournament_conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+    target_server_ip = tournament_conf['server']
     global current_server_status
     if target_server_ip in current_server_status.keys():
         message.reply('a game is conducted now at {} (tournament:{}).'.format(target_server_ip,
@@ -275,7 +337,6 @@ def cool_func(message):
         return
 
     group = txt_list[-1]
-    tournament_conf = {}
     dt_start = datetime.datetime.now().strftime('%Y%m%d%H%M')
 
     teams = tl.getTeamsInGroup(group)
@@ -288,15 +349,19 @@ def cool_func(message):
             msg = '\'{}\' is conducted at {}'.format(group, ipaddress)
             message.reply(msg)
             return
-    if os.path.exists('{}{}/{}'.format(LOG_DIR, tmp_tournament_yml['title'], group)):
+    if os.path.exists('{}{}/{}'.format(LOG_DIR, tournament_conf['title'], group)):
         msg = '\'{}\' is already finished'.format(group)
+        message.reply(msg)
+        return
+    if group not in channel_conf.keys():
+        msg = 'Channel that announce the result of {} is not set yet. Please setup it by \'channel\' command'.format(group)
         message.reply(msg)
         return
 
     tournament_conf['log_dir'] = '{}/{}'.format(dt_start, group)
     tournament_conf['teams'] = teams
 
-    tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), tournament_conf)
+    tl.overwriteYml('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group), tournament_conf)
 
     msg = tl.getGroupMatchListMessage(group)
     # msg = group + ' tournament starts soon \n' \
@@ -304,24 +369,25 @@ def cool_func(message):
 
     message.react('+1')
     original_channel_id = message.body['channel']
-    announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
+    slack_announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['slack'])
+    discord_announce_channel_id = ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['discord']
     tl.sendMessageToChannels(message=message,
                              message_str=msg,
-                             channels=[original_channel_id, announce_channel_id],
+                             channels=[original_channel_id, slack_announce_channel_id],
                              default_id=original_channel_id)
     if discordbot_flag:
-        tl.sendMessageToDiscordChannel(msg)
+        tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
     # set current server status
     current_server_status[target_server_ip] = group
 
-    conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+    conf = tl.loadYml('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
 
     qualified_dir = "{}qualified_team/".format(COMPETITION_MANAGER_PATH)
 
     print('sync tournament scripts and teams...')
     tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
-    tl.rsync('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH),
+    tl.rsync('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group),
              '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
     for teamname in conf['teams']:
         tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(conf['server'], USERNAME))
@@ -383,9 +449,6 @@ def cool_func(message):
     """
 
     if conf['mode'] == 'group':
-        # update tournament.yml
-        tl.saveYml(conf, '{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
-
         # simulate
         group_match_sim = tl.startSimulate(conf['server'], '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
 
@@ -404,7 +467,7 @@ def cool_func(message):
                 match_dict[match_name] = match_team
                 max_match = max(max_match, int(match_line[0].rstrip(':')))
         match_dict['max_match'] = max_match
-        tl.saveYml(match_dict, '{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH))
+        tl.saveYml(match_dict, '{}config/match_list_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
 
         # start game
         _ = tl.startGame(conf['server'],
@@ -448,31 +511,53 @@ def cool_func(message):
 
     tl.sendMessageToChannels(message=message,
                              message_str=msg,
-                             channels=[original_channel_id, announce_channel_id],
+                             channels=[original_channel_id, slack_announce_channel_id],
                              default_id=original_channel_id)
     if discordbot_flag:
-        tl.sendMessageToDiscordChannel(msg)
+        tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
 
-@listen_to(r'^announce match$')
+@listen_to(r'^announce match .+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
-    if not os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
-        msg = 'No tournament.yml. Please use \'server\', \'host\' and \'group\' commands before use this command.\n'
+    body_text = message.body['text'].split()
+    if len(body_text) != 4:
+        msg = 'Illegal input.\n'
         msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
         return
 
-    conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+    group = body_text[3]
+
+    if not os.path.exists('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group)):
+        msg = 'No tournament_{}.yml. Please start a tournament by \'start\' commands before use this command.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    if not os.path.exists('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH)):
+        message.reply('{}config/channel.yml does not exist. Please setup channel setting by \'channel\' '
+                      'command before using this command'.format(COMPETITION_MANAGER_PATH))
+        return
+
+    channel_conf = tl.loadYml('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
+
+    if group not in channel_conf.keys():
+        msg = 'Channel that announce the result of {} is not set yet. Please setup it by \'channel\' command'.format(group)
+        message.reply(msg)
+        return
+
+    conf = tl.loadYml('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
     target_server_ip = conf['server']
     tournament_log_dir = '{}{}/'.format(TOURNAMENT_PATH, conf['log_dir'])
-    match_dict = tl.loadYml('{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH))
+    match_dict = tl.loadYml('{}config/match_list_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
     dt_start = conf['log_dir'].split('/')[0]
 
     match_n = 0
 
     original_channel_id = message.body['channel']
-    announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
+    slack_announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['slack'])
+    discord_announce_channel_id = ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['discord']
 
     progress_flag = False
     global announce_flag
@@ -526,19 +611,19 @@ def listen_func(message):
 
                 tl.sendMessageToChannels(message=message,
                                          message_str=msg,
-                                         channels=[original_channel_id, announce_channel_id],
+                                         channels=[original_channel_id, slack_announce_channel_id],
                                          default_id=original_channel_id)
                 if discordbot_flag:
-                    tl.sendMessageToDiscordChannel(msg)
+                    tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
             msg = 'The following game has started:\n' + tl.getMatchStartMessage(match_dict, match_n)
 
             tl.sendMessageToChannels(message=message,
                                      message_str=msg,
-                                     channels=[original_channel_id, announce_channel_id],
+                                     channels=[original_channel_id, slack_announce_channel_id],
                                      default_id=original_channel_id)
             if discordbot_flag:
-                tl.sendMessageToDiscordChannel(msg)
+                tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
             progress_flag = False
         sleep(5)
@@ -576,10 +661,10 @@ def listen_func(message):
 
     tl.sendMessageToChannels(message=message,
                              message_str=msg,
-                             channels=[original_channel_id, announce_channel_id],
+                             channels=[original_channel_id, slack_announce_channel_id],
                              default_id=original_channel_id)
     if discordbot_flag:
-        tl.sendMessageToDiscordChannel(msg)
+        tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
     announce_flag = False
 
@@ -602,15 +687,7 @@ def listen_func(message):
         return
 
     msg = tl.getGroupMatchListMessage(group)
-
-    original_channel_id = message.body['channel']
-    announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
-    tl.sendMessageToChannels(message=message,
-                             message_str=msg,
-                             channels=[original_channel_id, announce_channel_id],
-                             default_id=original_channel_id)
-    if discordbot_flag:
-        tl.sendMessageToDiscordChannel(msg)
+    message.reply(msg)
 
 
 @listen_to(r'^dropbox\w*')
@@ -708,10 +785,26 @@ def listen_func(message):
     message.reply(msg)
 
 
-@listen_to(r'^setting$')
+@listen_to(r'^setting*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
-    yml_name = '{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)
+    body_txt = message.body['text'].split()
+    if len(body_txt) >= 3:
+        msg = 'Illegal input.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    if len(body_txt) == 2 and not os.path.exists('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, body_txt[1])):
+        message.reply('{}config/tournament_{}.yml is not exist.'.format(COMPETITION_MANAGER_PATH, body_txt[1]))
+        return
+
+    if len(body_txt) == 1:
+        yml_name = '{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)
+
+    elif len(body_txt) == 2:
+        yml_name = '{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, body_txt[1])
+
     if not os.path.exists(yml_name):
         msg = 'No tournament.yml. Please use \'server\', \'host\' and \'group\' commands before use this command.\n'
         msg += tl.getHelpMessageForOrganizers()
@@ -719,7 +812,7 @@ def listen_func(message):
         return
 
     tournament_setting = tl.loadYml(yml_name)
-    msg = 'Setting:\n'
+    msg = 'Current setting:\n' if len(body_txt) == 1 else 'Setting of {}:\n'.format(body_txt[1])
     for key, value in tournament_setting.items():
         msg += ' -{}: {}\n'.format(key, value)
 
@@ -743,11 +836,16 @@ def listen_func(message):
     msg = 'Team leaders can upload team binary now.'
 
     original_channel_id = message.body['channel']
-    announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
+    announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME]
+    announce_channel_id.append(original_channel_id)
     tl.sendMessageToChannels(message=message,
                              message_str=msg,
-                             channels=[original_channel_id, announce_channel_id],
+                             channels=announce_channel_id,
                              default_id=original_channel_id)
+    if discordbot_flag:
+        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME]
+        for c in announce_channel_id:
+            tl.sendMessageToDiscordChannel(msg, c)
 
 
 @listen_to(r'^binary upload end$')
@@ -770,12 +868,18 @@ def listen_func(message):
         shutil.copy2(team_path, archive_team_dir)
 
     original_channel_id = message.body['channel']
-    announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
+    announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME]
+    announce_channel_id.append(original_channel_id)
     msg = 'Team binaries cannot be uploaded now.'
     tl.sendMessageToChannels(message=message,
                              message_str=msg,
-                             channels=[original_channel_id, announce_channel_id],
+                             channels=announce_channel_id,
                              default_id=original_channel_id)
+    if discordbot_flag:
+        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME]
+        for c in announce_channel_id:
+            tl.sendMessageToDiscordChannel(msg, c)
+
 
 
 @listen_to(r'^test\w*')
@@ -1264,14 +1368,17 @@ def file_upload(message):
     msg = '{} are available at https://drive.google.com/drive/folders/{}'.format(msg, GOOGLE_DRIVE_FOLDER_ID)
 
     original_channel_id = message.body['channel']
-    announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME)
+    announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME]
+    announce_channel_id.append(original_channel_id)
 
     tl.sendMessageToChannels(message=message,
                              message_str=msg,
-                             channels=[original_channel_id, announce_channel_id],
+                             channels=announce_channel_id,
                              default_id=original_channel_id)
     if discordbot_flag:
-        tl.sendMessageToDiscordChannel(message_str=msg)
+        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME]
+        for c in announce_channel_id:
+            tl.sendMessageToDiscordChannel(msg, c)
 
 
 @listen_to('^recovery mode \w+$')
