@@ -1,7 +1,6 @@
 # coding: utf-8
 import datetime
 import subprocess
-import os
 import shutil
 from distutils.dir_util import copy_tree
 from slackbot.bot import respond_to
@@ -214,6 +213,40 @@ def listen_func(message):
         message.reply('server is updated')
 
 
+@listen_to(r'^roundrobin title*')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def set_roundrobin_title(message):
+    setting = message.body['text'].split()
+    if len(setting) == 2:
+        if setting[0] == 'roundrobin' and setting[1] == 'title':
+            ans_flag = 'status'
+        else:
+            ans_flag = 'help'
+    elif len(setting) == 3:
+        ans_flag = 'set'
+    else:
+        ans_flag = 'help'
+
+    if ans_flag == 'help':
+        message.reply(tl.getHelpMessageForOrganizers())
+        return
+    elif ans_flag == 'status':
+        if not os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
+            msg = 'No tournament.yml. Please use \'server\', \'host\' and \'group\' commands before use this command.\n'
+            msg += tl.getHelpMessageForOrganizers()
+        else:
+            conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+            msg = 'roundrobin title\n-' + conf["title"]
+        message.reply(msg)
+        return
+    elif ans_flag == 'set':
+        roundrobin_title = setting[2]
+        roundrobin_dict = {'title': '{}/{}'.format(COMPETITION_NAME, roundrobin_title)}
+        tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), roundrobin_dict)
+        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), roundrobin_dict)
+        message.reply('roundrobin_title is updated')
+
+
 @listen_to(r'^start \w+')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def cool_func(message):
@@ -365,10 +398,15 @@ def cool_func(message):
         tl.saveYml(match_dict, '{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH))
 
         # start game
-        _ = tl.startGame(conf['server'], '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
+        _ = tl.startGame(conf['server'],
+                         '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
 
         # sync game logs to slackserver
-        tl.rsync('{}:/home/{}/tournament/'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
+        tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, dt_start),
+                 TOURNAMENT_PATH.rstrip('/'))
+        # remove game logs in rcssserver
+        tl.cmdAtRemoteServer(conf['server'],
+                             'rm -r /home/{}/tournament/{}'.format(USERNAME, dt_start))
 
     else:
         msg = 'Illegal game mode \'{}\'.'.format(conf['mode'])
@@ -384,7 +422,7 @@ def cool_func(message):
         msg += '\n' + db_g_link
 
     if google_drive_flag:
-        msg += '\n https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
+        msg += '\n logs are available here. https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
 
     game_flag = False
 
@@ -394,8 +432,8 @@ def cool_func(message):
             break
 
     # copy the game log files
-    os.makedirs(LOG_DIR, exist_ok=True)
-    copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), LOG_DIR)
+    os.makedirs(LOG_DIR+conf['title'], exist_ok=True)
+    copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), LOG_DIR+conf['title'])
     os.makedirs(LOG_DIR + 'archive/', exist_ok=True)
     shutil.move('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}archive'.format(LOG_DIR))
 
@@ -419,6 +457,7 @@ def listen_func(message):
     conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
     tournament_log_dir = '{}{}/'.format(TOURNAMENT_PATH, conf['log_dir'])
     match_dict = tl.loadYml('{}config/match_list.yml'.format(COMPETITION_MANAGER_PATH))
+    dt_start = conf['log_dir'].split('/')[0]
 
     match_n = 0
 
@@ -430,7 +469,8 @@ def listen_func(message):
     announce_flag = True
     while game_flag:
         # sync game logs
-        tl.rsync('{}:/home/{}/tournament/'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
+        tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, dt_start),
+                 TOURNAMENT_PATH.rstrip('/'))
 
         if os.path.exists(tournament_log_dir):
             for n in os.listdir(tournament_log_dir):
@@ -463,7 +503,7 @@ def listen_func(message):
 
                 if google_drive_flag:
                     gdrive = tl.MyGoogleDrive()
-                    gdrive.upload(tournament_log_dir + match_dir, prefix='logs/' + group)
+                    gdrive.upload(tournament_log_dir + match_dir, prefix='logs/{}/{}'.format(conf['title'], group))
 
                 msg = 'The game finished with the following scores:\n' + tl.getMatchResultMessage(match_dict,
                                                                                                   result_dict,
@@ -513,7 +553,7 @@ def listen_func(message):
 
     if google_drive_flag:
         gdrive = tl.MyGoogleDrive()
-        gdrive.upload(tournament_log_dir + match_dir, prefix='logs/' + group)
+        gdrive.upload(tournament_log_dir + match_dir, prefix='logs/{}/{}'.format(conf["title"], group))
 
     msg = 'The game finished with the following scores:\n' + tl.getMatchResultMessage(match_dict,
                                                                                       result_dict,
@@ -652,6 +692,24 @@ def listen_func(message):
     message.reply(msg)
 
 
+@listen_to(r'^setting$')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def listen_func(message):
+    yml_name = '{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)
+    if not os.path.exists(yml_name):
+        msg = 'No tournament.yml. Please use \'server\', \'host\' and \'group\' commands before use this command.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    tournament_setting = tl.loadYml(yml_name)
+    msg = 'Setting:\n'
+    for key, value in tournament_setting.items():
+        msg += ' -{}: {}\n'.format(key, value)
+
+    message.reply(msg)
+
+
 @listen_to(r'^allow binary upload$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
@@ -776,7 +834,7 @@ def listen_func(message):
         message.send(t_team + ' test finish')
 
         # sync game logs to slackserver
-        tl.rsync('{}:/home/{}/tournament/'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
+        tl.rsync('{}:/home/{}/tournament/log'.format(conf['server'], USERNAME), TOURNAMENT_PATH.rstrip('/'))
 
         # move logfiles to competition-manager
         os.makedirs(LOG_DIR + 'test/', exist_ok=True)

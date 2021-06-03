@@ -38,10 +38,13 @@ def cmdAtRemoteServer(server, cmd):
 
 def getHelpMessageForOrganizers():
     msg = '[Command list]\n' \
+          ' -status: Show the Slackbot status.\n' \
+          ' -setting: Show the setting of the tournament.\n' \
           ' -team : Show qualified team that succeeded the binary test.\n' \
           ' -clear qualification : Clear qualification.\n' \
           ' -server * : Update IP address for rcssserver. (e.g. server 127.0.0.1)\n' \
           ' -host *,* : Update hosts\' IP addresses for teams. 2 addresses are required. (e.g. host 127.0.0.1,127.0.0.1)\n' \
+          ' -roundrobin title * : Update the name of roundrobin. This title is used for the prefix of the log_dir. (e.g. roundrobin title SeedingRound)\n' \
           ' -register * : Update registered team-list. (e.g. register hogehoge@gmail.com,teamA)\n' \
           ' -group* : Create a group and select teams to run the round-robin. (e.g. groupA teamA,teamB,teamC,...)\n' \
           ' -start group* : Start round-robin. (e.g. start groupA)\n' \
@@ -50,7 +53,7 @@ def getHelpMessageForOrganizers():
           ' -test : Test qualified teams. (e.g. test teamA,teamB,teamC,...)\n' \
           ' -stop test : Cancel testing teams\n' \
           ' -announce match: Announce the progress report and match result\n' \
-          ' -check matches: Simulate the group matches and announce the schedule\n' \
+          ' -check matches * : Simulate the group matches and announce the schedule. (e.g. check matched groupA)\n' \
           ' -dropbox* : Switch dropbox flag whether dropbox will be used or not. (e.g. dropbox true)\n' \
           ' -gdrive* : Switch google_drive flag whether google_drive will be used or not. (e.g. gdrive true)\n' \
           ' -discordbot* : Switch discordbot flag whether discord_bot will be used or not. (e.g. discordbot true)\n' \
