@@ -521,13 +521,13 @@ def cool_func(message):
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
     body_text = message.body['text'].split()
-    if len(body_text) != 4:
+    if len(body_text) != 3:
         msg = 'Illegal input.\n'
         msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
         return
 
-    group = body_text[3]
+    group = body_text[2]
 
     if not os.path.exists('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group)):
         msg = 'No tournament_{}.yml. Please start a tournament by \'start\' commands before use this command.\n'
@@ -856,14 +856,14 @@ def listen_func(message):
     print('bin_flag', bin_flag)
 
     archived_time = datetime.datetime.now().strftime('%Y%m%d')
-    msg = 'binary upload end.\n Current teams will be archived on {}{}'.format(TEAMS_DIR, archived_time)
+    msg = 'binary upload end.\n Current teams will be archived on {}{}/{}'.format(TEAMS_DIR, COMPETITION_NAME, archived_time)
     message.reply(msg)
 
     # save pre-uploaded binary
+    archive_team_dir = '{}{}/{}/'.format(TEAMS_DIR, COMPETITION_NAME, archived_time)
     qualified_teams = tl.getQualifiedTeams()
     for q_team in qualified_teams:
         team_path = COMPETITION_MANAGER_PATH + 'qualified_team' + '/' + q_team + '.tar.gz'
-        archive_team_dir = '{}{}/'.format(TEAMS_DIR, archived_time)
         os.makedirs(archive_team_dir, exist_ok=True)
         shutil.copy2(team_path, archive_team_dir)
 
@@ -1361,8 +1361,8 @@ def file_upload(message):
         return
 
     gdrive = tl.MyGoogleDrive()
-    upload_target = LOG_DIR if txt[-1] == 'logs' else TEAMS_DIR
-    gdrive.upload(upload_target)
+    upload_target = LOG_DIR + COMPETITION_NAME if txt[-1] == 'logs' else TEAMS_DIR + COMPETITION_NAME
+    gdrive.upload(upload_target, prefix=txt[-1])
 
     msg = 'Game logs' if txt[-1] == 'logs' else 'Team binaries'
     msg = '{} are available at https://drive.google.com/drive/folders/{}'.format(msg, GOOGLE_DRIVE_FOLDER_ID)
