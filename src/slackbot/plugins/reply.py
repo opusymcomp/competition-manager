@@ -18,7 +18,7 @@ bin_test_queue = []
 dbx_flag = False
 google_drive_flag = False
 discordbot_flag = False
-announce_flag = False
+announcement_channel_status = {}  # the assigned group name will be appended
 current_server_status = {}  # the server's ip-address and the assigned group-name will be appended
 recovery_mode = False
 
@@ -500,7 +500,7 @@ def cool_func(message):
 
     # wait for finishing announce
     while True:
-        if not announce_flag:
+        if group not in announcement_channel_status.keys():
             break
 
     # copy the game log files
@@ -521,13 +521,13 @@ def cool_func(message):
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def listen_func(message):
     body_text = message.body['text'].split()
-    if len(body_text) != 4:
+    if len(body_text) != 3:
         msg = 'Illegal input.\n'
         msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
         return
 
-    group = body_text[3]
+    group = body_text[2]
 
     if not os.path.exists('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group)):
         msg = 'No tournament_{}.yml. Please start a tournament by \'start\' commands before use this command.\n'
@@ -560,8 +560,8 @@ def listen_func(message):
     discord_announce_channel_id = ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['discord']
 
     progress_flag = False
-    global announce_flag
-    announce_flag = True
+    global announcement_channel_status
+    announcement_channel_status[group] = channel_conf[group]
     global current_server_status
     while target_server_ip in current_server_status.keys():
         # sync game logs
@@ -666,7 +666,7 @@ def listen_func(message):
     if discordbot_flag:
         tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
-    announce_flag = False
+    announcement_channel_status.pop(group)
 
 
 @listen_to(r'^check matches \w+')
@@ -763,7 +763,7 @@ def listen_func(message):
     global google_drive_flag
     global discordbot_flag
     global current_server_status
-    global announce_flag
+    global announcement_channel_status
     global bin_test_queue
 
     msg = 'Status:\n' \
@@ -772,14 +772,14 @@ def listen_func(message):
           ' -google_drive_flag: {}\n' \
           ' -discordbot flag: {}\n' \
           ' -current_server_status: {}\n' \
-          ' -announce_flag: {}\n' \
+          ' -announce_channel_status: {}\n' \
           ' -bin_test_queue: {}\n' \
           ' -recovery_mode: {}'.format(bin_flag,
                                        dbx_flag,
                                        google_drive_flag,
                                        discordbot_flag,
                                        current_server_status,
-                                       announce_flag,
+                                       announcement_channel_status,
                                        ','.join(bin_test_queue),
                                        recovery_mode)
     message.reply(msg)
@@ -856,14 +856,14 @@ def listen_func(message):
     print('bin_flag', bin_flag)
 
     archived_time = datetime.datetime.now().strftime('%Y%m%d')
-    msg = 'binary upload end.\n Current teams will be archived on {}{}'.format(TEAMS_DIR, archived_time)
+    msg = 'binary upload end.\n Current teams will be archived on {}{}/{}'.format(TEAMS_DIR, COMPETITION_NAME, archived_time)
     message.reply(msg)
 
     # save pre-uploaded binary
+    archive_team_dir = '{}{}/{}/'.format(TEAMS_DIR, COMPETITION_NAME, archived_time)
     qualified_teams = tl.getQualifiedTeams()
     for q_team in qualified_teams:
         team_path = COMPETITION_MANAGER_PATH + 'qualified_team' + '/' + q_team + '.tar.gz'
-        archive_team_dir = '{}{}/'.format(TEAMS_DIR, archived_time)
         os.makedirs(archive_team_dir, exist_ok=True)
         shutil.copy2(team_path, archive_team_dir)
 
@@ -1361,8 +1361,8 @@ def file_upload(message):
         return
 
     gdrive = tl.MyGoogleDrive()
-    upload_target = LOG_DIR if txt[-1] == 'logs' else TEAMS_DIR
-    gdrive.upload(upload_target)
+    upload_target = LOG_DIR + COMPETITION_NAME if txt[-1] == 'logs' else TEAMS_DIR + COMPETITION_NAME
+    gdrive.upload(upload_target, prefix=txt[-1])
 
     msg = 'Game logs' if txt[-1] == 'logs' else 'Team binaries'
     msg = '{} are available at https://drive.google.com/drive/folders/{}'.format(msg, GOOGLE_DRIVE_FOLDER_ID)

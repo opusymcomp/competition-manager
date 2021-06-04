@@ -36,3 +36,5 @@ rm ${competition_manager_path}config/qualification_test.yml
 rm ${competition_manager_path}config/tournament.yml
 rm ${competition_manager_path}config/match_list_*.yml
 rm ${competition_manager_path}config/tournament_*.yml
+rm ${competition_manager_path}config/channel.yml
+rm -r ${tournament_path}log
