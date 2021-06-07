@@ -36,7 +36,7 @@ else:
 
 
 @listen_to(r'^help$')
-def listen_func(message):
+def get_help(message):
     channel_name = message.channel._body['name']
     if channel_name == ORGANIZER_CHANNEL_NAME:
         msg = tl.getHelpMessageForOrganizers()
@@ -48,7 +48,7 @@ def listen_func(message):
 
 
 @respond_to(r'^help$')
-def listen_func(message):
+def get_help(message):
     try:
         channel_name = message.channel._body['name']
         if channel_name == ORGANIZER_CHANNEL_NAME:
@@ -64,7 +64,7 @@ def listen_func(message):
 
 @listen_to(r'^team$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def get_team(message):
     msg = 'Qualified teams:\n'
     q_teams_list = tl.getQualifiedTeams()
     for i in range(len(q_teams_list)):
@@ -74,7 +74,7 @@ def listen_func(message):
 
 @listen_to(r'^group\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def set_group(message):
     setting = message.body['text'].split()
     if len(setting) == 1:
         if setting[0] == 'group':
@@ -119,32 +119,42 @@ def listen_func(message):
 
     elif ans_flag == 'set':
         team_list = setting[1].split(',')
-        qualified_teams = tl.getQualifiedTeams()
-
-        for team in team_list:
-            if team not in qualified_teams:
-                message.reply('{} is not a qualified team. Cannot register {} in {}'.format(team, team, setting[0]))
-                team_list.remove(team)
-
-        if len(team_list) >= 2:
-            if os.path.exists('{}config/group.yml'.format(COMPETITION_MANAGER_PATH)):
-                group_yaml = tl.loadYml('{}config/group.yml'.format(COMPETITION_MANAGER_PATH))
-                group_yaml[setting[0]] = team_list
-            else:
-                group_yaml = {setting[0]: team_list}
-            tl.saveYml(group_yaml, '{}config/group.yml'.format(COMPETITION_MANAGER_PATH))
+        if setGroup(message, group=setting[0], team_list=team_list):
             message.reply('{} is saved'.format(setting[0]))
         else:
-            msg = 'The number of registered teams must be 2 or more.'
-            message.reply(msg)
+            message.reply('{}-update failed.'.format(setting[0]))
 
 
-@listen_to(r'^host*')
+def setGroup(message, group, team_list):
+    qualified_teams = tl.getQualifiedTeams()
+
+    for team in team_list:
+        if team not in qualified_teams:
+            message.reply('{} is not a qualified team. Cannot register {} in {}'.format(team, team, group))
+            team_list.remove(team)
+
+    if len(team_list) >= 2:
+        if os.path.exists('{}config/group.yml'.format(COMPETITION_MANAGER_PATH)):
+            group_yaml = tl.loadYml('{}config/group.yml'.format(COMPETITION_MANAGER_PATH))
+            group_yaml[group] = team_list
+        else:
+            group_yaml = {group: team_list}
+        tl.saveYml(group_yaml, '{}config/group.yml'.format(COMPETITION_MANAGER_PATH))
+        tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), {"teams": team_list})
+        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), {"teams": team_list})
+        return True
+    else:
+        msg = 'The number of registered teams must be 2 or more than 2.'
+        message.reply(msg)
+        return False
+
+
+@listen_to(r'^hosts*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def set_host(message):
     setting = message.body['text'].split()
     if len(setting) == 1:
-        if setting[0] == 'host':
+        if setting[0] == 'hosts':
             ans_flag = 'status'
         else:
             ans_flag = 'help'
@@ -162,7 +172,7 @@ def listen_func(message):
             tournament_yml = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
             msg = 'host\n-' + ','.join(tournament_yml['hosts'])
         else:
-            msg = '{}config/tournament.yml is not exist. Please set hosts by \'host\' command (e.g. host 127.0.0.1,127.0.0.1)\n'.format(
+            msg = '{}config/tournament.yml is not exist. Please set hosts by \'host\' command (e.g. hosts 127.0.0.1,127.0.0.1)\n'.format(
                 COMPETITION_MANAGER_PATH)
             msg += tl.getHelpMessageForOrganizers()
         message.reply(msg)
@@ -170,19 +180,27 @@ def listen_func(message):
 
     elif ans_flag == 'set':
         host_list = setting[1].split(',')
-        if len(host_list) == 2:
-            host_yaml = {'hosts': host_list}
-            tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), host_yaml)
-            tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), host_yaml)
+        if setHosts(message, host_list):
             message.reply('hosts are updated')
         else:
-            msg = 'The number of hosts must be 2'
-            message.reply(msg)
+            message.reply('host-update failed')
+
+
+def setHosts(message, host_list):
+    if len(host_list) == 2:
+        host_yaml = {'hosts': host_list}
+        tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), host_yaml)
+        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), host_yaml)
+        return True
+    else:
+        msg = 'The number of hosts must be 2'
+        message.reply(msg)
+        return False
 
 
 @listen_to(r'^server*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def set_server(message):
     setting = message.body['text'].split()
     if len(setting) == 1:
         if setting[0] == 'server':
@@ -211,15 +229,22 @@ def listen_func(message):
 
     elif ans_flag == 'set':
         server = setting[1]
-        server_yaml = {'server': server}
-        tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), server_yaml)
-        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), server_yaml)
-        message.reply('server is updated')
+        if setServer(message, server):
+            message.reply('server is updated')
+        else:
+            message.reply('server-update failed')
+
+
+def setServer(_, server):
+    server_yaml = {'server': server}
+    tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), server_yaml)
+    tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), server_yaml)
+    return True
 
 
 @listen_to(r'^channel*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def set_channel(message):
     setting = message.body['text'].split()
     if len(setting) == 1:
         if setting[0] == 'channel':
@@ -259,19 +284,26 @@ def listen_func(message):
     elif ans_flag == 'set':
         group = setting[1].split(',')[0]
         channel = setting[1].split(',')[1]
-        if channel not in ANNOUNCE_CHANNEL_NAME.keys():
-            msg = 'Cannot set \'{}\' as the announcement channel. You can choose the channel from the following channel-list' \
-                  ' (defined in config/manager.yml)\n'.format(channel)
-            msg += ','.join(ANNOUNCE_CHANNEL_NAME.keys())
-            message.reply(msg)
-            return
-        if os.path.exists('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH)):
-            channel_yml = tl.loadYml('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
-            channel_yml[group] = channel
+        if setChannel(message, group, channel):
+            message.reply('channel is updated')
         else:
-            channel_yml = {group: channel}
-        tl.saveYml(channel_yml, '{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
-        message.reply('channel is updated')
+            message.reply('channel-update failed')
+
+
+def setChannel(message, group, channel):
+    if channel not in ANNOUNCE_CHANNEL_NAME.keys():
+        msg = 'Cannot set \'{}\' as the announcement channel. You can choose the channel from the following channel-list' \
+              ' (defined in config/manager.yml)\n'.format(channel)
+        msg += ','.join(ANNOUNCE_CHANNEL_NAME.keys())
+        message.reply(msg)
+        return False
+    if os.path.exists('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH)):
+        channel_yml = tl.loadYml('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
+        channel_yml[group] = channel
+    else:
+        channel_yml = {group: channel}
+    tl.saveYml(channel_yml, '{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
+    return True
 
 
 @listen_to(r'^roundrobin title*')
@@ -302,15 +334,188 @@ def set_roundrobin_title(message):
         return
     elif ans_flag == 'set':
         roundrobin_title = setting[2]
-        roundrobin_dict = {'title': '{}/{}'.format(COMPETITION_NAME, roundrobin_title)}
-        tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), roundrobin_dict)
-        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), roundrobin_dict)
-        message.reply('roundrobin_title is updated')
+        if setRoundRobinTitle(message, roundrobin_title):
+            message.reply('roundrobin_title is updated')
+        else:
+            message.reply('roundrobin_title-update failed')
+
+
+def setRoundRobinTitle(_, roundrobin_title):
+    roundrobin_dict = {'title': '{}/{}'.format(COMPETITION_NAME, roundrobin_title)}
+    tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), roundrobin_dict)
+    tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), roundrobin_dict)
+    return True
+
+
+@listen_to(r'^conf*')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def set_conf(message):
+    body_text = message.body['text'].split()
+    if len(body_text) == 1:
+        ans_flag = 'status'
+    elif len(body_text) > 2:
+        ans_flag = 'help'
+    else:
+        ans_flag = 'set'
+
+    if ans_flag == 'help':
+        msg = tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+    elif ans_flag == 'status':
+        if not os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
+            msg = 'No tournament.yml. Please set tournament parameters by some commands before use this command.\n'
+            msg += tl.getHelpMessageForOrganizers()
+        else:
+            conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+            msg = 'RcssServer config\n-' + conf["server_conf"]
+        message.reply(msg)
+        return
+    else:
+        server_conf = body_text[1]
+        if setServerConf(message, server_conf):
+            message.reply('server_conf is updated')
+        else:
+            message.reply('server_conf-update failed')
+
+
+def setServerConf(message, server_conf):
+    available_server_conf_list = glob.glob('{}config/rcssserver/server_*.conf'.format(TOURNAMENT_PATH))
+    available_server_conf_list = [c.split('/')[-1] for c in available_server_conf_list]
+    if server_conf not in available_server_conf_list:
+        msg = 'Cannot select {} as a server_conf.\n'.format(server_conf)
+        msg += 'You can select the server_conf from the following list\n'
+        for c in available_server_conf_list:
+            msg += ' -{}\n'.format(c)
+        message.reply(msg)
+        return False
+    else:
+        server_conf_dict = {'server_conf': 'config/rcssserver/{}'.format(server_conf)}
+        tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), server_conf_dict)
+        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), server_conf_dict)
+        return True
+
+
+@listen_to(r'^mode*')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def set_mode(message):
+    body_text = message.body['text'].split()
+    if len(body_text) == 1:
+        ans_flag = 'status'
+    elif len(body_text) > 2:
+        ans_flag = 'help'
+    else:
+        ans_flag = 'set'
+
+    if ans_flag == 'help':
+        msg = tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+    elif ans_flag == 'status':
+        if not os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
+            msg = 'No tournament.yml. Please set tournament parameters by some commands before use this command.\n'
+            msg += tl.getHelpMessageForOrganizers()
+        else:
+            conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
+            msg = 'Game mode\n-' + conf["mode"]
+        message.reply(msg)
+        return
+    else:
+        game_mode = body_text[1]
+        if setGameMode(message, game_mode):
+            message.reply('game_mode is updated')
+        else:
+            message.reply('game_mode-update failed')
+
+
+def setGameMode(message, game_mode):
+    available_game_mode_list = ['group', 'one_vs_all', 'single_match']
+    if game_mode not in available_game_mode_list:
+        msg = 'Cannot select game_mode:{}.\n'.format(game_mode)
+        msg += 'You can select the game_mode from the following list\n'
+        for g in available_game_mode_list:
+            msg += ' -{}\n'.format(g)
+        message.reply(msg)
+        return False
+    else:
+        game_mode_dict = {'mode': game_mode}
+        tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), game_mode_dict)
+        tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), game_mode_dict)
+        return True
+
+
+@listen_to(r'^set .+$')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def set_all(message):
+    body_text = message.body['text'].split()
+    # set all groupA --teams=teamA,teamB,teamC --server=serverIP --hosts=Host1IP,Host2IP --mode=gameMode --server-conf=serverConf --roundrobin-title=roundrobinTitle --channel=announcementChannelName
+    # set all groupA -t=teamA,teamB,teamC -s=serverIP -h=Host1IP,Host2IP -m=gameMode -sc=serverConf -rt=roundrobinTitle -c=announcementChannelName
+    if len(body_text) < 2:
+        msg = tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+
+    group = body_text[1]
+    for option in body_text:
+        if "--teams=" in option or "-t=" in option:
+            parser = option.split("=")[-1]
+            teams = parser.split(",")
+            if setGroup(message, group, teams):
+                message.reply('(set) {} is saved'.format(group))
+            else:
+                message.reply('(set) {}-update failed.'.format(group))
+                return
+        elif "--server=" in option or "-s=" in option:
+            server = option.split("=")[-1]
+            if setServer(message, server):
+                message.reply('(set) server is updated')
+            else:
+                message.reply('(set) server-update failed')
+                return
+        elif "--hosts=" in option or "-h=" in option:
+            parser = option.split("=")[-1]
+            hosts = parser.split(",")
+            if setHosts(message, hosts):
+                message.reply('(set) hosts are updated')
+            else:
+                message.reply('(set) host-update failed')
+                return
+        elif "--mode=" in option or "-m=" in option:
+            game_mode = option.split("=")[-1]
+            if setGameMode(message, game_mode):
+                message.reply('(set) game-mode is updated')
+            else:
+                message.reply('(set) game-mode-update failed')
+                return
+        elif "--server-conf=" in option or "-sc=" in option:
+            server_conf = option.split("=")[-1]
+            if setServerConf(message, server_conf):
+                message.reply('(set) server-conf is updated')
+            else:
+                message.reply('(set) server-conf-update failed')
+                return
+        elif "--roundrobin-title=" in option or "-rt=" in option:
+            roundrobin_title = option.split("=")[-1]
+            if setRoundRobinTitle(message, roundrobin_title):
+                message.reply('(set) roundrobin-title is updated')
+            else:
+                message.reply('(set) roundrobin-title-update failed')
+                return
+        elif "--channel=" in option or "-c=" in option:
+            channel = option.split("=")[-1]
+            if setChannel(message, group, channel):
+                message.reply('(set) channel is updated')
+            else:
+                message.reply('(set) channel update failed')
+                return
+        elif "--" in option and "=" in option:
+            message.reply("(set) unknown option {}".format(option.split("=")[0]))
+
+    message.reply('set completed. please check the updated setting by \'setting\' command.')
 
 
 @listen_to(r'^start \w+')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def cool_func(message):
+def start_func(message):
     if not os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
         message.reply('{}config/tournament.yml does not exist. Please setup tournament settings by '
                       '\'server\' and \'host\' commands before using this command'.format(COMPETITION_MANAGER_PATH))
@@ -362,24 +567,7 @@ def cool_func(message):
         return
 
     tournament_conf['log_dir'] = '{}/{}'.format(dt_start, group)
-    tournament_conf['teams'] = teams
-
     tl.overwriteYml('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group), tournament_conf)
-
-    msg = tl.getGroupMatchListMessage(group)
-    # msg = group + ' tournament starts soon \n' \
-    #  'Start time : ' + dt_start + '\nI will notify you when all games are finished.\n'
-
-    message.react('+1')
-    original_channel_id = message.body['channel']
-    slack_announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['slack'])
-    discord_announce_channel_id = ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['discord']
-    tl.sendMessageToChannels(message=message,
-                             message_str=msg,
-                             channels=[original_channel_id, slack_announce_channel_id],
-                             default_id=original_channel_id)
-    if discordbot_flag:
-        tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
     # set current server status
     current_server_status[target_server_ip] = group
@@ -451,24 +639,36 @@ def cool_func(message):
                 message.send(msg)
     """
 
-    if conf['mode'] == 'group':
+    if conf['mode'] == 'group' or conf['mode'] == 'one_vs_all':
         # simulate
-        group_match_sim = tl.startSimulate(conf['server'], '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
+        msg = tl.getGroupMatchListMessage(group, tournament_conf)
+        # msg = group + ' tournament starts soon \n' \
+        #  'Start time : ' + dt_start + '\nI will notify you when all games are finished.\n'
+
+        message.react('+1')
+        original_channel_id = message.body['channel']
+        slack_announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['slack'])
+        discord_announce_channel_id = ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['discord']
+        tl.sendMessageToChannels(message=message,
+                                 message_str=msg,
+                                 channels=[original_channel_id, slack_announce_channel_id],
+                                 default_id=original_channel_id)
+        if discordbot_flag:
+            tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
         # save match list
         match_dict = {}
         max_match = 0
-        matches = group_match_sim.stdout.split('\n')
 
-        for i in range(len(matches)):
-            if 'vs' in matches[i]:
-                match_line = matches[i].split()
-                match_name = 'match_' + match_line[0].rstrip(':')
+        for match_line in msg.split('\n'):
+            if 'vs' in match_line:
+                splitted_match_line = match_line.split()
+                match_name = 'match_' + splitted_match_line[0].rstrip(':')
                 match_team = {}
-                match_team['team_l'] = match_line[1].split('/')[-1]
-                match_team['team_r'] = match_line[3].split('/')[-1]
+                match_team['team_l'] = splitted_match_line[1]
+                match_team['team_r'] = splitted_match_line[3]
                 match_dict[match_name] = match_team
-                max_match = max(max_match, int(match_line[0].rstrip(':')))
+                max_match = max(max_match, int(splitted_match_line[0].rstrip(':')))
         match_dict['max_match'] = max_match
         tl.saveYml(match_dict, '{}config/match_list_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
 
@@ -538,7 +738,7 @@ def cool_func(message):
 
 @listen_to(r'^announce match .+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def announce_func(message):
     body_text = message.body['text'].split()
     if len(body_text) != 3:
         msg = 'Illegal input.\n'
@@ -694,7 +894,7 @@ def listen_func(message):
 
 @listen_to(r'^check matches \w+')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def check_matches_func(message):
     txt_list = message.body['text'].split()
     group = txt_list[2]
     if len(txt_list) == 3 and 'group' in group:
@@ -715,7 +915,7 @@ def listen_func(message):
 
 @listen_to(r'^abort \w+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def abort_group(message):
+def abort_func(message):
     body_text = message.body['text'].split()
     if len(body_text) != 2:
         msg = 'Illegal input.\n'
@@ -768,7 +968,7 @@ def abort_group(message):
 
 @listen_to(r'^resume \w+')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def resume_group(message):
+def resume_func(message):
     body_text = message.body['text'].split()
     if len(body_text) != 2:
         msg = 'Illegal input.\n'
@@ -813,7 +1013,7 @@ def resume_group(message):
         return
 
     msg = 'Resume {}\n'.format(group)
-    msg += tl.getGroupMatchListMessage(group)
+    msg += tl.getGroupMatchListMessage(group, tournament_conf)
 
     message.react('+1')
     original_channel_id = message.body['channel']
@@ -904,7 +1104,7 @@ def resume_group(message):
 
 @listen_to(r'^dropbox\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def dropbox_func(message):
     txt_flag = ''
     txt_list = message.body['text'].split()
     if len(txt_list) == 2:
@@ -929,7 +1129,7 @@ def listen_func(message):
 
 @listen_to(r'^gdrive\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def google_drive_func(message):
     txt_list = message.body['text'].split()
     if len(txt_list) == 2:
         global google_drive_flag
@@ -949,7 +1149,7 @@ def listen_func(message):
 
 @listen_to(r'^discordbot\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def discord_bot_func(message):
     txt_list = message.body['text'].split()
     if len(txt_list) == 2:
         global discordbot_flag
@@ -969,7 +1169,7 @@ def listen_func(message):
 
 @listen_to(r'^status$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def get_status(message):
     global bin_flag
     global dbx_flag
     global google_drive_flag
@@ -999,7 +1199,7 @@ def listen_func(message):
 
 @listen_to(r'^setting*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def get_setting(message):
     body_txt = message.body['text'].split()
     if len(body_txt) >= 3:
         msg = 'Illegal input.\n'
@@ -1024,7 +1224,7 @@ def listen_func(message):
         return
 
     tournament_setting = tl.loadYml(yml_name)
-    msg = 'Current setting:\n' if len(body_txt) == 1 else 'Setting of {}:\n'.format(body_txt[1])
+    msg = 'Current setting:\n' if len(body_txt) == 1 else 'Previous setting of {}:\n'.format(body_txt[1])
     for key, value in tournament_setting.items():
         msg += ' -{}: {}\n'.format(key, value)
 
@@ -1033,7 +1233,7 @@ def listen_func(message):
 
 @listen_to(r'^allow binary upload$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def binary_upload_func(message):
     global bin_flag
 
     yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
@@ -1062,7 +1262,7 @@ def listen_func(message):
 
 @listen_to(r'^binary upload end$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def binary_upload_func(message):
     global bin_flag
     bin_flag = False
     print('bin_flag', bin_flag)
@@ -1096,7 +1296,7 @@ def listen_func(message):
 
 @listen_to(r'^test\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def test_func(message):
     success = True
     txt_list = message.body['text'].split()
     if len(txt_list) != 2:
@@ -1192,7 +1392,7 @@ def listen_func(message):
 
 @listen_to(r'^stop test$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def stop_test_func(message):
     global stop_flag
     stop_flag = True
     msg = 'stop test'
@@ -1200,7 +1400,7 @@ def listen_func(message):
 
 
 @respond_to('^upload \w+')
-def file_download(message):
+def file_upload_func(message):
     userid = message.body['user']
     email = message.channel._client.users[userid]['profile']['email']
     teamname = message.body['text'].split()[-1]
@@ -1560,7 +1760,7 @@ def register_team(message):
 
 @listen_to('^share \w+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def file_upload(message):
+def share_file_func(message):
     if not google_drive_flag:
         msg = 'google_drive flag is False. Please use after google_drive_flag True by using \'gdrive\' command.'
         message.reply(msg)
@@ -1668,3 +1868,4 @@ def reset_test_queue(message):
     else:
         msg = '{} is not exist in queue'.format(txt_list[-1])
     message.reply(msg)
+
