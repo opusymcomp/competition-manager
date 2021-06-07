@@ -1,8 +1,10 @@
 # coding: utf-8
 import datetime
+import glob
 import os
 import subprocess
 import shutil
+import time
 from distutils.dir_util import copy_tree
 from slackbot.bot import respond_to
 from slackbot.bot import listen_to
@@ -21,6 +23,7 @@ discordbot_flag = False
 announcement_channel_status = {}  # the assigned group name will be appended
 current_server_status = {}  # the server's ip-address and the assigned group-name will be appended
 recovery_mode = False
+abort_process = False
 
 if dbx_flag:
     db = tl.MyDropbox(DROPBOX_ACCESS_TOKEN, DROPBOX_BOOT_DIR)
@@ -473,6 +476,13 @@ def cool_func(message):
         _ = tl.startGame(conf['server'],
                          '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
 
+        aborted = False
+        global abort_process
+        while abort_process:
+            if not aborted:
+                aborted = True
+            time.sleep(3)
+
         # sync game logs to slackserver
         tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, dt_start),
                  TOURNAMENT_PATH.rstrip('/'))
@@ -485,9 +495,7 @@ def cool_func(message):
         message.reply(msg)
         return
 
-    # dt_finish = datetime.datetime.now().strftime('%Y%m%d%H%M')
-    msg = group + ' tournament is over.\n' \
-        #  'Finish time : ' + dt_finish
+    msg = group + ' tournament is over.\n' if not aborted else group + ' tournament is aborted. \n'
 
     if dbx_flag:
         db_g_link = db.get_shared_link(DROPBOX_BOOT_DIR + '/' + group)
@@ -503,10 +511,21 @@ def cool_func(message):
         if group not in announcement_channel_status.keys():
             break
 
+    # check the aborted match
+    if aborted:
+        matches_list = glob.glob('{}{}/match_*'.format(TOURNAMENT_PATH, conf['log_dir']))
+        for match in matches_list:
+            match_name = match.split('/')[-1]
+            files_list = glob.glob('{}{}/{}/*.rc*.gz'.format(TOURNAMENT_PATH, conf['log_dir'], match_name))
+            if len(files_list) != 2:
+                shutil.rmtree('{}{}/{}'.format(TOURNAMENT_PATH, conf['log_dir'], match_name))
+        # remove the aborted log files
+        _ = tl.cmdAtRemoteServer(conf['server'], 'rm /home/{}/tournament/*.rc*.gz'.format(USERNAME))
+
     # copy the game log files
-    os.makedirs(LOG_DIR + conf['title'], exist_ok=True)
-    copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), LOG_DIR + conf['title'])
-    os.makedirs(LOG_DIR + 'archive/', exist_ok=True)
+    os.makedirs('{}{}'.format(LOG_DIR, conf['title']), exist_ok=True)
+    copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}{}'.format(LOG_DIR, conf['title']))
+    os.makedirs('{}{}'.format(LOG_DIR, 'archive/'), exist_ok=True)
     shutil.move('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}archive'.format(LOG_DIR))
 
     tl.sendMessageToChannels(message=message,
@@ -564,7 +583,7 @@ def listen_func(message):
     announcement_channel_status[group] = channel_conf[group]
     global current_server_status
     while target_server_ip in current_server_status.keys():
-        # sync game logs
+        # sync game logs (remove the previous one)
         tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, dt_start),
                  TOURNAMENT_PATH.rstrip('/'))
 
@@ -584,6 +603,9 @@ def listen_func(message):
 
                 group = conf['log_dir'].split('/')[-1]
                 match_dir = 'match_' + str(pre_match)
+
+                if not os.path.exists(tournament_log_dir + match_dir):
+                    continue
 
                 if dbx_flag:
                     tournament_match_dir = tournament_log_dir + match_dir
@@ -635,36 +657,37 @@ def listen_func(message):
     group = conf['log_dir'].split('/')[-1]
     match_dir = 'match_' + str(match_dict['max_match'])
 
-    if dbx_flag:
-        tournament_match_dir = tournament_log_dir + match_dir
-        db_match_dir = DROPBOX_BOOT_DIR + '/' + group + '/' + match_dir
-        db = tl.MyDropbox(DROPBOX_ACCESS_TOKEN, db_match_dir)
-        db.createFolder(db_match_dir)
-        for match_file in os.listdir(tournament_match_dir):
-            # if os.path.getsize( tournament_match_dir + '/' + match_file ) != 0:
-            with open(match_dir + '/' + match_file, 'rb') as m_f:
-                f_body = m_f.read()
-            db.uploadFiles(f_body, match_file)
-        db_link = db.get_shared_link(db_match_dir)
+    if os.path.exists(tournament_log_dir + match_dir):
+        if dbx_flag:
+            tournament_match_dir = tournament_log_dir + match_dir
+            db_match_dir = DROPBOX_BOOT_DIR + '/' + group + '/' + match_dir
+            db = tl.MyDropbox(DROPBOX_ACCESS_TOKEN, db_match_dir)
+            db.createFolder(db_match_dir)
+            for match_file in os.listdir(tournament_match_dir):
+                # if os.path.getsize( tournament_match_dir + '/' + match_file ) != 0:
+                with open(match_dir + '/' + match_file, 'rb') as m_f:
+                    f_body = m_f.read()
+                db.uploadFiles(f_body, match_file)
+            db_link = db.get_shared_link(db_match_dir)
 
-    if google_drive_flag:
-        gdrive = tl.MyGoogleDrive()
-        gdrive.upload(tournament_log_dir + match_dir, prefix='logs/{}/{}'.format(conf["title"], group))
+        if google_drive_flag:
+            gdrive = tl.MyGoogleDrive()
+            gdrive.upload(tournament_log_dir + match_dir, prefix='logs/{}/{}'.format(conf["title"], group))
 
-    msg = 'The game finished with the following scores:\n' + tl.getMatchResultMessage(match_dict,
-                                                                                      result_dict,
-                                                                                      match_dict['max_match'])
-    if dbx_flag:
-        msg += '\n' + db_link
-    if google_drive_flag:
-        msg += '\n https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
+        msg = 'The game finished with the following scores:\n' + tl.getMatchResultMessage(match_dict,
+                                                                                          result_dict,
+                                                                                          match_dict['max_match'])
+        if dbx_flag:
+            msg += '\n' + db_link
+        if google_drive_flag:
+            msg += '\n https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
 
-    tl.sendMessageToChannels(message=message,
-                             message_str=msg,
-                             channels=[original_channel_id, slack_announce_channel_id],
-                             default_id=original_channel_id)
-    if discordbot_flag:
-        tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
+        tl.sendMessageToChannels(message=message,
+                                 message_str=msg,
+                                 channels=[original_channel_id, slack_announce_channel_id],
+                                 default_id=original_channel_id)
+        if discordbot_flag:
+            tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
     announcement_channel_status.pop(group)
 
@@ -688,6 +711,195 @@ def listen_func(message):
 
     msg = tl.getGroupMatchListMessage(group)
     message.reply(msg)
+
+
+@listen_to(r'^abort \w+$')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def abort_group(message):
+    body_text = message.body['text'].split()
+    if len(body_text) != 2:
+        msg = 'Illegal input.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    group = body_text[-1]
+    global current_server_status
+    if group not in current_server_status.values():
+        msg = '{} is not executing now.'.format(group)
+        message.reply(msg)
+        return
+
+    global abort_process
+    abort_process = True
+
+    for key, value in current_server_status.items():  # for name, age in dictionary.iteritems():  (for Python 2.x)
+        if value == group:
+            server = key
+            break
+
+    tournament_conf = tl.loadYml("{}config/tournament_{}.yml".format(COMPETITION_MANAGER_PATH, group))
+
+    # kill tournament script
+    cmd = "ps aux | grep \"[s]sh {} cd tournament; ./start.sh\" | tail -n 1".format(server)
+    ssh_process_id = tl.cmdAtLocalhost(cmd).stdout.split()[1]
+    msg = 'kill tournament script...'
+    print(msg)
+    message.reply(msg)
+    _ = tl.cmdAtLocalhost('kill {}'.format(ssh_process_id))
+
+    # kill rcssserver
+    cmd = 'ps aux | grep [r]cssserver | tail -n 1'.format(server)
+    rcssserver_process_id = tl.cmdAtRemoteServer(server, cmd).stdout.split()[1]
+    msg = 'kill rcssserver...'
+    print(msg)
+    message.reply(msg)
+    _ = tl.cmdAtRemoteServer(server, 'kill {}'.format(rcssserver_process_id))
+
+    # kill agents
+    teams = tournament_conf['teams']
+    msg = 'kill agents...'
+    print(msg)
+    message.reply(msg)
+    for t in teams:
+        _ = tl.cmdAtRemoteServer(server, '/home/{}/{}/kill'.format(USERNAME, t))
+    abort_process = False
+
+
+@listen_to(r'^resume \w+')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def resume_group(message):
+    body_text = message.body['text'].split()
+    if len(body_text) != 2:
+        msg = 'Illegal input.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+    group = body_text[-1]
+
+    if not os.path.exists('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group)):
+        message.reply('{}config/tournament_{}.yml does not exist. You can use this command to use'.format(COMPETITION_MANAGER_PATH, group))
+        return
+    if not os.path.exists('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH)):
+        message.reply('{}config/channel.yml does not exist. Please setup channel setting by \'channel\' command before using this command'.format(COMPETITION_MANAGER_PATH))
+        return
+
+    channel_conf = tl.loadYml('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
+    # check game server availability
+    tournament_conf = tl.loadYml('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
+    target_server_ip = tournament_conf['server']
+    global current_server_status
+    if target_server_ip in current_server_status.keys():
+        message.reply('a game is conducted now at {} (tournament:{}).'.format(target_server_ip,
+                                                                              current_server_status[target_server_ip]))
+        return
+
+    if bin_flag:
+        message.reply('Binary upload must be prohibit by the command \'binary upload end\'.')
+        return
+
+    for ipaddress, executing_group in current_server_status.items():
+        if executing_group == group:
+            msg = '\'{}\' is conducted at {}'.format(group, ipaddress)
+            message.reply(msg)
+            return
+    if not os.path.exists('{}{}/{}'.format(LOG_DIR, tournament_conf['title'], group)):
+        msg = '\'{}\' is not aborted before'.format(group)
+        message.reply(msg)
+        return
+    if group not in channel_conf.keys():
+        msg = 'Channel that announce the result of {} is not set yet. Please setup it by \'channel\' command'.format(group)
+        message.reply(msg)
+        return
+
+    msg = 'Resume {}\n'.format(group)
+    msg += tl.getGroupMatchListMessage(group)
+
+    message.react('+1')
+    original_channel_id = message.body['channel']
+    slack_announce_channel_id = tl.getChannelID(message, ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['slack'])
+    discord_announce_channel_id = ANNOUNCE_CHANNEL_NAME[channel_conf[group]]['discord']
+    tl.sendMessageToChannels(message=message,
+                             message_str=msg,
+                             channels=[original_channel_id, slack_announce_channel_id],
+                             default_id=original_channel_id)
+    if discordbot_flag:
+        tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
+
+    # set current server status
+    current_server_status[target_server_ip] = group
+
+    # !!! not sync teams under a assumption that teams must be same as the aborted situation !!!
+    # !!! if you want to replace a team, you have to do by yourself. !!!
+    print('sync tournament scripts...')
+    tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.rsync('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group),
+             '{}:/home/{}/tournament/config/tournament.yml'.format(tournament_conf['server'], USERNAME))
+
+    # sync game logs to rcssserver
+    tl.cmdAtRemoteServer(target_server_ip, 'cd tournament; mkdir -p {}'.format(tournament_conf['log_dir']))
+    # cannot use rsync the path including spaces
+    tl.rsync('\"{}{}/{}\"'.format(LOG_DIR, tournament_conf['title'], group),
+             '{}:/home/{}/tournament/{}'.format(target_server_ip, USERNAME, tournament_conf['log_dir'].split('/')[0]))
+
+    # resume game
+    a = tl.resumeGame(target_server_ip,
+                      '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
+
+    aborted = False
+    global abort_process
+    while abort_process:
+        if not aborted:
+            aborted = True
+        time.sleep(3)
+
+    # sync game logs to slackserver
+    dt_start = tournament_conf['log_dir'].split('/')[0]
+    tl.rsync('{}:/home/{}/tournament/{}'.format(target_server_ip, USERNAME, dt_start),
+             TOURNAMENT_PATH.rstrip('/'))
+    # remove game logs in rcssserver
+    tl.cmdAtRemoteServer(target_server_ip,
+                         'rm -r /home/{}/tournament/{}'.format(USERNAME, dt_start))
+
+    msg = group + ' tournament is over.\n' if not aborted else group + ' tournament is aborted. \n'
+
+    if dbx_flag:
+        db_g_link = db.get_shared_link(DROPBOX_BOOT_DIR + '/' + group)
+        msg += '\n' + db_g_link
+
+    if google_drive_flag:
+        msg += '\n logs are available here. https://drive.google.com/drive/folders/{}'.format(GOOGLE_DRIVE_FOLDER_ID)
+
+    current_server_status.pop(target_server_ip)
+
+    # wait for finishing announce
+    while True:
+        if group not in announcement_channel_status.keys():
+            break
+
+    if aborted:
+        matches_list = glob.glob('{}{}/match_*'.format(TOURNAMENT_PATH, tournament_conf['log_dir']))
+        for match in matches_list:
+            match_name = match.split('/')[-1]
+            files_list = glob.glob('{}{}/{}/*.rc*.gz'.format(TOURNAMENT_PATH, tournament_conf['log_dir'], match_name))
+            if len(files_list) != 2:
+                shutil.rmtree('{}{}/{}'.format(TOURNAMENT_PATH, tournament_conf['log_dir'], match_name))
+        # remove the aborted log files
+        _ = tl.cmdAtRemoteServer(tournament_conf['server'], 'rm /home/{}/tournament/*.rc*.gz'.format(USERNAME))
+
+    # copy the game log files
+    os.makedirs('{}{}'.format(LOG_DIR, tournament_conf['title']), exist_ok=True)
+    copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}{}'.format(LOG_DIR, tournament_conf['title']))
+    os.makedirs('{}{}'.format(LOG_DIR, 'archive/'), exist_ok=True)
+    copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}archive/{}'.format(LOG_DIR, dt_start))
+    shutil.rmtree('{}{}'.format(TOURNAMENT_PATH, dt_start))
+
+    tl.sendMessageToChannels(message=message,
+                             message_str=msg,
+                             channels=[original_channel_id, slack_announce_channel_id],
+                             default_id=original_channel_id)
+    if discordbot_flag:
+        tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
 
 @listen_to(r'^dropbox\w*')

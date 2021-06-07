@@ -12,14 +12,6 @@ from slacker import Slacker
 
 slacker = Slacker(API_TOKEN)
 
-comp_flag_dict = {}
-
-
-def resCmd(cmd):
-    return subprocess.Popen(
-        cmd, stdout=subprocess.PIPE,
-        shell=True).communicate()[0]
-
 
 def rsync(from_path, to_path):
     return subprocess.run(['rsync -au {} {}'.format(from_path, to_path)],
@@ -32,8 +24,12 @@ def scp(from_path, to_path):
 
 
 def cmdAtRemoteServer(server, cmd):
-    return subprocess.run(['ssh {} {}'.format(server, cmd)],
+    return subprocess.run(['ssh {} \"{}\"'.format(server, cmd)],
                           encoding='utf-8', stdout=subprocess.PIPE, shell=True)
+
+
+def cmdAtLocalhost(cmd):
+    return subprocess.run([cmd], encoding='utf-8', stdout=subprocess.PIPE, shell=True)
 
 
 def getHelpMessageForOrganizers():
@@ -53,6 +49,8 @@ def getHelpMessageForOrganizers():
           ' -binary upload end : Remove upload autorization for users registered in /path/to/competition-manager/test/maillist.txt\n' \
           ' -test : Test qualified teams. (e.g. test teamA,teamB,teamC,...)\n' \
           ' -stop test : Cancel testing teams\n' \
+          ' -abort * : Suspend matches in the group. (e.g. abort groupA)\n' \
+          ' -resume * : Resume matches in the group. (e.g. resume groupA)\n' \
           ' -announce match * : Announce the progress report and match result. (e.g. announce match groupA)\n' \
           ' -check matches * : Simulate the group matches and announce the schedule. (e.g. check matches groupA)\n' \
           ' -dropbox* : Switch dropbox flag whether dropbox will be used or not. (e.g. dropbox true)\n' \
@@ -171,7 +169,13 @@ def overwriteYml(path, added_info):
 
 
 def startGame(server, yml):
-    cmd = '\"cd tournament; ./start.sh --config={}\"'.format(yml)
+    cmd = 'cd tournament; ./start.sh --config={}'.format(yml)
+    result = cmdAtRemoteServer(server, cmd)
+    return result
+
+
+def resumeGame(server, yml):
+    cmd = 'cd tournament; ./start.sh --resume --config={}'.format(yml)
     result = cmdAtRemoteServer(server, cmd)
     return result
 
@@ -184,7 +188,7 @@ def startSimulate(server, yml):
                                 encoding='utf-8', stdout=subprocess.PIPE, shell=True)
         os.chdir(current_dir)
     else:
-        cmd = '\"cd tournament; ./start.sh --config={} --simulate\"'.format(yml)
+        cmd = 'cd tournament; ./start.sh --config={} --simulate'.format(yml)
         result = cmdAtRemoteServer(server, cmd)
     return result
 
