@@ -36,7 +36,7 @@ else:
 
 
 @listen_to(r'^help$')
-def listen_func(message):
+def get_help(message):
     channel_name = message.channel._body['name']
     if channel_name == ORGANIZER_CHANNEL_NAME:
         msg = tl.getHelpMessageForOrganizers()
@@ -48,7 +48,7 @@ def listen_func(message):
 
 
 @respond_to(r'^help$')
-def listen_func(message):
+def get_help(message):
     try:
         channel_name = message.channel._body['name']
         if channel_name == ORGANIZER_CHANNEL_NAME:
@@ -64,7 +64,7 @@ def listen_func(message):
 
 @listen_to(r'^team$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def get_team(message):
     msg = 'Qualified teams:\n'
     q_teams_list = tl.getQualifiedTeams()
     for i in range(len(q_teams_list)):
@@ -74,7 +74,7 @@ def listen_func(message):
 
 @listen_to(r'^group\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def set_group(message):
     setting = message.body['text'].split()
     if len(setting) == 1:
         if setting[0] == 'group':
@@ -141,7 +141,7 @@ def listen_func(message):
 
 @listen_to(r'^host*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def set_host(message):
     setting = message.body['text'].split()
     if len(setting) == 1:
         if setting[0] == 'host':
@@ -182,7 +182,7 @@ def listen_func(message):
 
 @listen_to(r'^server*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def set_server(message):
     setting = message.body['text'].split()
     if len(setting) == 1:
         if setting[0] == 'server':
@@ -219,7 +219,7 @@ def listen_func(message):
 
 @listen_to(r'^channel*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def set_channel(message):
     setting = message.body['text'].split()
     if len(setting) == 1:
         if setting[0] == 'channel':
@@ -308,9 +308,27 @@ def set_roundrobin_title(message):
         message.reply('roundrobin_title is updated')
 
 
+@listen_to(r'^conf*')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def set_conf(message):
+    pass
+
+
+@listen_to(r'^mode*')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def set_mode(message):
+    pass
+
+
+@listen_to(r'^set all*')
+@in_channel(ORGANIZER_CHANNEL_NAME)
+def set_all(message):
+    pass
+
+
 @listen_to(r'^start \w+')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def cool_func(message):
+def start_func(message):
     if not os.path.exists('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH)):
         message.reply('{}config/tournament.yml does not exist. Please setup tournament settings by '
                       '\'server\' and \'host\' commands before using this command'.format(COMPETITION_MANAGER_PATH))
@@ -538,7 +556,7 @@ def cool_func(message):
 
 @listen_to(r'^announce match .+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def announce_func(message):
     body_text = message.body['text'].split()
     if len(body_text) != 3:
         msg = 'Illegal input.\n'
@@ -694,7 +712,7 @@ def listen_func(message):
 
 @listen_to(r'^check matches \w+')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def check_matches_func(message):
     txt_list = message.body['text'].split()
     group = txt_list[2]
     if len(txt_list) == 3 and 'group' in group:
@@ -715,7 +733,7 @@ def listen_func(message):
 
 @listen_to(r'^abort \w+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def abort_group(message):
+def abort_func(message):
     body_text = message.body['text'].split()
     if len(body_text) != 2:
         msg = 'Illegal input.\n'
@@ -768,7 +786,7 @@ def abort_group(message):
 
 @listen_to(r'^resume \w+')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def resume_group(message):
+def resume_func(message):
     body_text = message.body['text'].split()
     if len(body_text) != 2:
         msg = 'Illegal input.\n'
@@ -904,7 +922,7 @@ def resume_group(message):
 
 @listen_to(r'^dropbox\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def dropbox_func(message):
     txt_flag = ''
     txt_list = message.body['text'].split()
     if len(txt_list) == 2:
@@ -929,7 +947,7 @@ def listen_func(message):
 
 @listen_to(r'^gdrive\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def google_drive_func(message):
     txt_list = message.body['text'].split()
     if len(txt_list) == 2:
         global google_drive_flag
@@ -949,7 +967,7 @@ def listen_func(message):
 
 @listen_to(r'^discordbot\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def discord_bot_func(message):
     txt_list = message.body['text'].split()
     if len(txt_list) == 2:
         global discordbot_flag
@@ -969,7 +987,7 @@ def listen_func(message):
 
 @listen_to(r'^status$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def get_status(message):
     global bin_flag
     global dbx_flag
     global google_drive_flag
@@ -999,7 +1017,7 @@ def listen_func(message):
 
 @listen_to(r'^setting*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def get_setting(message):
     body_txt = message.body['text'].split()
     if len(body_txt) >= 3:
         msg = 'Illegal input.\n'
@@ -1033,7 +1051,7 @@ def listen_func(message):
 
 @listen_to(r'^allow binary upload$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def binary_upload_func(message):
     global bin_flag
 
     yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
@@ -1062,7 +1080,7 @@ def listen_func(message):
 
 @listen_to(r'^binary upload end$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def binary_upload_func(message):
     global bin_flag
     bin_flag = False
     print('bin_flag', bin_flag)
@@ -1096,7 +1114,7 @@ def listen_func(message):
 
 @listen_to(r'^test\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def test_func(message):
     success = True
     txt_list = message.body['text'].split()
     if len(txt_list) != 2:
@@ -1192,7 +1210,7 @@ def listen_func(message):
 
 @listen_to(r'^stop test$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def listen_func(message):
+def stop_test_func(message):
     global stop_flag
     stop_flag = True
     msg = 'stop test'
@@ -1200,7 +1218,7 @@ def listen_func(message):
 
 
 @respond_to('^upload \w+')
-def file_download(message):
+def file_upload_func(message):
     userid = message.body['user']
     email = message.channel._client.users[userid]['profile']['email']
     teamname = message.body['text'].split()[-1]
@@ -1560,7 +1578,7 @@ def register_team(message):
 
 @listen_to('^share \w+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
-def file_upload(message):
+def share_file_func(message):
     if not google_drive_flag:
         msg = 'google_drive flag is False. Please use after google_drive_flag True by using \'gdrive\' command.'
         message.reply(msg)
