@@ -39,9 +39,12 @@ def getHelpMessageForOrganizers():
           ' -team : Show qualified team that succeeded the binary test.\n' \
           ' -clear qualification : Clear qualification.\n' \
           ' -server * : Update IP address for rcssserver. (e.g. server 127.0.0.1)\n' \
-          ' -host *,* : Update hosts\' IP addresses for teams. 2 addresses are required. (e.g. host 127.0.0.1,127.0.0.1)\n' \
+          ' -hosts *,* : Update hosts\' IP addresses for teams. 2 addresses are required. (e.g. hosts 127.0.0.1,127.0.0.1)\n' \
           ' -channel *,* : Update channel for announcement of the result. the channel name is defined in config/manager.yml (e.g. channel groupA,main_tournament_channel)\n' \
           ' -roundrobin title * : Update the name of roundrobin. This title is used for the prefix of the log_dir. (e.g. roundrobin title SeedingRound)\n' \
+          ' -conf * : Update config file for rcssserver. (e.g. conf server_official.conf)\n' \
+          ' -mode * : Update game mode of tournament. (e.g. mode group)\n' \
+          ' -set * : Update settings. (e.g. all set groupA --teams=teamA,teamB,teamC --server=192.168.1.2 --hosts=192.168.1.2,192.168.1.2 --mode=group --server-conf=server_official.conf --roundrobin-title=SeedingRound --channel=main_tournament_channel)\n' \
           ' -register * : Update registered team-list. (e.g. register hogehoge@gmail.com,teamA)\n' \
           ' -group* : Create a group and select teams to run the round-robin. (e.g. groupA teamA,teamB,teamC,...)\n' \
           ' -start group* : Start round-robin. (e.g. start groupA)\n' \
@@ -224,10 +227,12 @@ def getMatchResultMessage(match_dict, result_dict, focused_game_id):
     return msg
 
 
-def getGroupMatchListMessage(group):
+def getGroupMatchListMessage(group, tournament_conf):
     teams = getTeamsInGroup(group)
+    # tmp_settings for local simulate
     tmp_setting = {'teams': teams,
                    'log_dir': 'tmp',
+                   'mode' : tournament_conf['mode'],
                    'teams_dir': '{}qualified_team'.format(COMPETITION_MANAGER_PATH)}
 
     # save as tmp yml in order to avoid overwriting the current tournament configuration
