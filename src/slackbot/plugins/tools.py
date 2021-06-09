@@ -13,8 +13,9 @@ from slacker import Slacker
 slacker = Slacker(API_TOKEN)
 
 
-def rsync(from_path, to_path):
-    return subprocess.run(['rsync -au {} {}'.format(from_path, to_path)],
+def rsync(from_path, to_path, delete=False):
+    cmd = 'rsync -au {} {}'.format(from_path, to_path) if not delete else 'rsync -au --delete {} {}'.format(from_path, to_path)
+    return subprocess.run([cmd],
                           encoding='utf-8', stdout=subprocess.PIPE, shell=True)
 
 

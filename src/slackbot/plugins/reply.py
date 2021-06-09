@@ -581,9 +581,11 @@ def start_func(message):
     tl.rsync('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group),
              '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
     for teamname in conf['teams']:
-        tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(conf['server'], USERNAME))
+        tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
         for h in conf['hosts']:
-            tl.rsync('{}/{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(h, USERNAME))
+            if h == conf['server']:
+                continue
+            tl.rsync('{}/{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(h, USERNAME), delete=True)
 
     """
     if conf['mode'] == 'single_match':
@@ -909,7 +911,14 @@ def check_matches_func(message):
         message.reply(msg)
         return
 
-    msg = tl.getGroupMatchListMessage(group)
+    if not os.path.exists('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group)):
+        msg = 'No tournament_{}.yml. Please start a tournament by \'start\' commands before use this command.\n'
+        msg += tl.getHelpMessageForOrganizers()
+        message.reply(msg)
+        return
+
+    tournament_conf = tl.loadYml('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
+    msg = tl.getGroupMatchListMessage(group, tournament_conf)
     message.reply(msg)
 
 
@@ -1254,10 +1263,10 @@ def binary_upload_func(message):
                              message_str=msg,
                              channels=announce_channel_id,
                              default_id=original_channel_id)
-    if discordbot_flag:
-        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME.values()]
-        for c in announce_channel_id:
-            tl.sendMessageToDiscordChannel(msg, c)
+    # if discordbot_flag:
+    #     announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME.values()]
+    #     for c in announce_channel_id:
+    #         tl.sendMessageToDiscordChannel(msg, c)
 
 
 @listen_to(r'^binary upload end$')
@@ -1287,10 +1296,10 @@ def binary_upload_func(message):
                              message_str=msg,
                              channels=announce_channel_id,
                              default_id=original_channel_id)
-    if discordbot_flag:
-        announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME.values()]
-        for c in announce_channel_id:
-            tl.sendMessageToDiscordChannel(msg, c)
+    # if discordbot_flag:
+    #     announce_channel_id = [key['discord'] for key in ANNOUNCE_CHANNEL_NAME.values()]
+    #     for c in announce_channel_id:
+    #         tl.sendMessageToDiscordChannel(msg, c)
 
 
 
@@ -1356,19 +1365,21 @@ def test_func(message):
         # sync config file of tournament
         tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
         # sync teams
-        tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(conf['server'], USERNAME))
-        tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(conf['server'], USERNAME))
+        tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
+        tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
 
         # sync to host
         for h in conf['hosts']:
+            if h == conf['server']:
+                continue
             # sync tournament script
             tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
             # sync config file of tournament
             tl.rsync(yml_name,
                      '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
             # sync teams
-            tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(h, USERNAME))
-            tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(h, USERNAME), delete=True)
+            tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME), delete=True)
 
         message.send(t_team + ' test start')
         _ = tl.startGame(conf['server'], yml_name)
@@ -1601,21 +1612,22 @@ def file_upload_func(message):
     # sync config file of tournament
     tl.rsync(yml_name,
              '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
-    # sync teams
-    tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    # sync teams to server
+    tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME), delete=True)
     tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH),
-             '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+             '{}:/home/{}'.format(tournament_conf['server'], USERNAME), delete=True)
 
     # sync to host
     for h in tournament_conf['hosts']:
+        if h == tournament_conf['server']:
+            continue
         # sync tournament script
         tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
         # sync config file of tournament
         tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME,
                                                                      yml_name.split('/')[-1]))
-        # sync teams
-        tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(h, USERNAME))
-        tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME))
+        tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(h, USERNAME), delete=True)
+        tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME), delete=True)
 
     result_game = tl.startGame(tournament_conf['server'],
                                '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/')[-1]))
@@ -1640,14 +1652,6 @@ def file_upload_func(message):
                 tl.upload_file_s(TOURNAMENT_PATH + log_dir + '/match_1/' + f_name,
                                  message.body['channel'])
 
-    # check team_name
-    if not os.path.exists('{}/test/log_ana/{}.csv'.format(COMPETITION_MANAGER_PATH, teamname)):
-        msg = 'the team name is different from \'{}\''.format(teamname)
-        message.reply(msg)
-        bin_test_queue.remove(teamname)
-        current_server_status.pop(target_server_ip)
-        return
-
     # check disconnected players
     discon_index = result_analyze.stdout.find('DisconnectedPlayer')
     discon_p = result_analyze.stdout[discon_index + len('DisconnectedPlayer'):].replace('\n', '')
@@ -1655,7 +1659,9 @@ def file_upload_func(message):
 
     # save the succeeded team_name to qualification.txt
     try:
-        if discon_p != '' and int(discon_p) == 0:
+        # success-process
+        if discon_p != '' and int(discon_p) == 0 \
+                and os.path.exists('{}/test/log_ana/{}.csv'.format(COMPETITION_MANAGER_PATH, teamname)):
             if os.path.exists('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH)):
                 qualified_team = tl.getQualifiedTeams()
                 if teamname not in qualified_team:
@@ -1663,13 +1669,15 @@ def file_upload_func(message):
                         q_txt_ad.write(teamname + ',' + upload_time + '\n')
                 else:
                     # already qualified. update the last uploaded time
-                    mod_q = []
-                    for line in qualified_team:
-                        if teamname == line:
-                            tmp_line = teamname + ',' + upload_time + '\n'
-                            mod_q.append(tmp_line)
-                        else:
-                            mod_q.append(line)
+                    with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'r') as q_txt_r:
+                        mod_q = []
+                        lines = q_txt_r.readlines()
+                        for line in lines:
+                            if teamname == line.split(',')[0]:
+                                tmp_line = teamname + ',' + upload_time + '\n'
+                                mod_q.append(tmp_line)
+                            else:
+                                mod_q.append(line)
                     with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'w') as q_txt_ad:
                         q_txt_ad.writelines(mod_q)
             else:
@@ -1691,17 +1699,22 @@ def file_upload_func(message):
                 shutil.rmtree('{}{}'.format(qualified_dir, teamname))
             shutil.move('{}{}'.format(temporary_dir, teamname), '{}{}'.format(qualified_dir, teamname))
 
-        elif discon_p != '' and int(discon_p) > 0:
-            # something error message
-            message.send('{} players were disconnected. Something may be wrong with the binary '
-                         'while it could successfully connected to rcssserver at the beginning of the game.'.format(
-                discon_p))
-            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
-            shutil.rmtree('{}{}'.format(temporary_dir, teamname))
+        # failed process
         else:
-            message.send('??? Something wrong ???')
+            # Illegal team_name
+            if not os.path.exists('{}/test/log_ana/{}.csv'.format(COMPETITION_MANAGER_PATH, teamname)):
+                msg = 'the team name is different from \'{}\''.format(teamname)
+            # Disconnected Players
+            elif discon_p != '' and int(discon_p) > 0:
+                msg = '{} players were disconnected. Something may be wrong with the binary ' \
+                      'while it could successfully connected to rcssserver at the beginning of the game.'.format(discon_p)
+            # Unknown Error
+            else:
+                msg = '??? Something wrong ???'
+            message.reply(msg)
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
             shutil.rmtree('{}{}'.format(temporary_dir, teamname))
+
     except Exception:
         # failed message
         msg = '{}:Binary test failed.'.format(teamname)
