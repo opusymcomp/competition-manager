@@ -1354,11 +1354,14 @@ def test_func(message):
         log_dir = "log/" + t_team + '/' + time
 
         conf = tl.loadYml(yml_name)
+        # update qualification_test.yml
         conf['log_dir'] = log_dir
+        conf['teams_dir'] = '/home/{}'.format(USERNAME)
         conf['teams'] = [t_team, 'agent2d']
+        conf['server_conf'] = 'config/rcssserver/server_test.conf'
         tl.overwriteYml(yml_name, conf)
 
-        qualified_dir = '{}qualified_team/'
+        qualified_dir = '{}qualified_team/'.format(COMPETITION_MANAGER_PATH)
 
         # sync tournament script
         tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
@@ -1382,7 +1385,8 @@ def test_func(message):
             tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME), delete=True)
 
         message.send(t_team + ' test start')
-        _ = tl.startGame(conf['server'], yml_name)
+        _ = tl.startGame(conf['server'],
+                         '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/')[-1]))
         message.send(t_team + ' test finish')
 
         # sync game logs to slackserver
@@ -1830,7 +1834,7 @@ def switch_recovery_mode(message):
     return
 
 
-@listen_to('^reset gameflag*$')
+@listen_to('^reset gameflag .+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def reset_gameflag(message):
     txt_list = message.body['text'].split()
@@ -1855,6 +1859,7 @@ def reset_gameflag(message):
         return
 
     current_server_status.pop(target_server_ip)
+    message.reply('reset {}'.format(target_server_ip))
 
 
 @listen_to('^reset test queue \w+$')
