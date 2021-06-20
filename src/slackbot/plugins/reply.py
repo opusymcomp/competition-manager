@@ -1689,6 +1689,10 @@ def file_upload_func(message):
     if os.path.exists(TOURNAMENT_PATH + log_dir + '/match_1'):
         for f_name in os.listdir(TOURNAMENT_PATH + log_dir + '/match_1'):
             if ('rc' in f_name and '.gz' in f_name) or ('team_l' in f_name and '.log' in f_name):
+                file_size = os.path.getsize(TOURNAMENT_PATH + log_dir + '/match_1/' + f_name)
+                if file_size == 0:
+                    message.reply('{} is empty'.format(f_name.rsplit('/', 1)[-1]))
+                    continue
                 tl.upload_file_s(TOURNAMENT_PATH + log_dir + '/match_1/' + f_name,
                                  message.body['channel'])
 
