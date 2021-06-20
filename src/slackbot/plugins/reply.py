@@ -1416,12 +1416,20 @@ def stop_test_func(message):
 
 @respond_to('^upload \w+')
 def file_upload_func(message):
-    userid = message.body['user']
-    email = message.channel._client.users[userid]['profile']['email']
-    teamname = message.body['text'].split()[-1]
-
     original_channel_id = message.body['channel']
     organizer_channel_id = tl.getChannelID(message, ORGANIZER_CHANNEL_NAME)
+
+    userid = message.body['user']
+    try:
+        email = message.channel._client.users[userid]['profile']['email']
+    except KeyError:
+        msg = 'Unknown email. The user entered after this system started.\nPlease restart this system'
+        tl.sendMessageToChannels(message=message,
+                                 message_str=msg,
+                                 channels=[original_channel_id, organizer_channel_id],
+                                 default_id=original_channel_id)
+        return
+    teamname = message.body['text'].split()[-1]
 
     yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
     if not os.path.exists(yml_name):
@@ -1496,14 +1504,30 @@ def file_upload_func(message):
 
     print("bin download ", result)
     if result == 'ok':
-        if teamname != filename.split('.tar.gz')[0]:
+        if '.tar.gz' not in filename and '.tar.xz' not in filename:
+            msg = 'Please compress files using tar.gz (see thr binary upload manual for details)'
+            tl.sendMessageToChannels(message=message,
+                                     message_str=msg,
+                                     channels=[original_channel_id, organizer_channel_id],
+                                     default_id=original_channel_id)
+            try:
+                shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+            except (FileNotFoundError, FileExistsError) as e:
+                print(e)
+            bin_test_queue.remove(teamname)
+            current_server_status.pop(target_server_ip)
+            return
+        if teamname != filename.split('.tar.')[0]:
             msg = 'Attached file\'s name [{}] is different from your command [{}]'.format(filename.split('.tar.gz')[0],
                                                                                           teamname)
             tl.sendMessageToChannels(message=message,
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
-            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+            try:
+                shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+            except (FileNotFoundError, FileExistsError) as e:
+                print(e)
             bin_test_queue.remove(teamname)
             current_server_status.pop(target_server_ip)
             return
@@ -1515,13 +1539,19 @@ def file_upload_func(message):
                                      message_str=msg,
                                      channels=[original_channel_id, organizer_channel_id],
                                      default_id=original_channel_id)
-            shutil.move('{}{}'.format(temporary_dir, filename), failed_dir + filename)
+            try:
+                shutil.move('{}{}'.format(temporary_dir, filename), failed_dir + filename)
+            except (FileNotFoundError, FileExistsError) as e:
+                print(e)
             bin_test_queue.remove(teamname)
             current_server_status.pop(target_server_ip)
             return
     elif result == 'file type is not applicable.':
         message.reply('File type is not applicable.\n Applicable file type is tar.gz')
-        shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+        try:
+            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+        except (FileNotFoundError, FileExistsError) as e:
+            print(e)
         bin_test_queue.remove(teamname)
         current_server_status.pop(target_server_ip)
         return
@@ -1533,13 +1563,19 @@ def file_upload_func(message):
     elif result == 'type null':
         message.reply(
             'Uploading binary may be too fast.\n please wait approx. 10 seconds after uploading binary is completed')
-        shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+        try:
+            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+        except (FileNotFoundError, FileExistsError) as e:
+            print(e)
         bin_test_queue.remove(teamname)
         current_server_status.pop(target_server_ip)
         return
     else:
         message.send('Uploading file is failed.')
-        shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+        try:
+            shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
+        except (FileNotFoundError, FileExistsError) as e:
+            print(e)
         bin_test_queue.remove(teamname)
         current_server_status.pop(target_server_ip)
         return
