@@ -1419,15 +1419,15 @@ def file_upload_func(message):
     original_channel_id = message.body['channel']
     organizer_channel_id = tl.getChannelID(message, ORGANIZER_CHANNEL_NAME)
 
-    userid = message.body['user']
     try:
-        email = message.channel._client.users[userid]['profile']['email']
-    except KeyError:
+        email = message.user['profile']['email']
+    except KeyError as e:
         msg = 'Unknown email. The user entered after this system started.\nPlease restart this system'
         tl.sendMessageToChannels(message=message,
                                  message_str=msg,
                                  channels=[original_channel_id, organizer_channel_id],
                                  default_id=original_channel_id)
+        print(e)
         return
     teamname = message.body['text'].split()[-1]
 
@@ -1496,8 +1496,8 @@ def file_upload_func(message):
 
     file_types = ['gzip', 'binary']
     download_file = dl.DownloadFile(file_types, temporary_dir)
-    if 'files' in message._body.keys():
-        filename = message._body['files'][0]['name']
+    if 'files' in message.body.keys():
+        filename = message.body['files'][0]['name']
         result = download_file.exe_download(message._body['files'][0])
     else:
         result = 'empty'
