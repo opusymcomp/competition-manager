@@ -1416,11 +1416,16 @@ def stop_test_func(message):
 
 @respond_to('^upload \w+')
 def file_upload_func(message):
+    message._client.reconnect()
+    time.sleep(3)
+
     original_channel_id = message.body['channel']
     organizer_channel_id = tl.getChannelID(message, ORGANIZER_CHANNEL_NAME)
 
+    user_id = message.body['user']
+
     try:
-        email = message.user['profile']['email']
+        email = message._client.users[user_id]['profile']['email']
     except KeyError as e:
         msg = 'Unknown email. The user entered after this system started.\nPlease restart this system'
         tl.sendMessageToChannels(message=message,
