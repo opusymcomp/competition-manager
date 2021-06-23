@@ -582,13 +582,11 @@ def start_func(message):
              '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
     for teamname in conf['teams']:
         # sync teams to server
-        tl.cmdAtRemoteServer(tournament_conf['server'], 'rm -r /home/{}/{}'.format(USERNAME, teamname))
         tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
         for h in conf['hosts']:
             if h == conf['server']:
                 continue
             # sync teams to server
-            tl.cmdAtRemoteServer(tournament_conf['server'], 'rm -r /home/{}/{}'.format(USERNAME, teamname))
             tl.rsync('{}/{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(h, USERNAME), delete=True)
 
     """
@@ -1371,7 +1369,6 @@ def test_func(message):
         # sync config file of tournament
         tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
         # sync teams
-        tl.cmdAtRemoteServer(conf['server'], 'rm -r /home/{}/{}'.format(USERNAME, t_team))
         tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
         tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
 
@@ -1385,7 +1382,6 @@ def test_func(message):
             tl.rsync(yml_name,
                      '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
             # sync teams
-            tl.cmdAtRemoteServer(conf['server'], 'rm -r /home/{}/{}'.format(USERNAME, t_team))
             tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(h, USERNAME), delete=True)
             tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME), delete=True)
 
@@ -1663,7 +1659,6 @@ def file_upload_func(message):
     tl.rsync(yml_name,
              '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
     # sync teams to server
-    tl.cmdAtRemoteServer(tournament_conf['server'], 'rm -r /home/{}/{}'.format(USERNAME, teamname))
     tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME), delete=True)
     tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH),
              '{}:/home/{}'.format(tournament_conf['server'], USERNAME), delete=True)
@@ -1678,7 +1673,6 @@ def file_upload_func(message):
         tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME,
                                                                      yml_name.split('/')[-1]))
         # sync teams to server
-        tl.cmdAtRemoteServer(tournament_conf['server'], 'rm -r /home/{}/{}'.format(USERNAME, teamname))
         tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(h, USERNAME), delete=True)
         tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME), delete=True)
 
