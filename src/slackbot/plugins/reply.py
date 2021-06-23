@@ -448,8 +448,8 @@ def setGameMode(message, game_mode):
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def set_all(message):
     body_text = message.body['text'].split()
-    # set all groupA --teams=teamA,teamB,teamC --server=serverIP --hosts=Host1IP,Host2IP --mode=gameMode --server-conf=serverConf --roundrobin-title=roundrobinTitle --channel=announcementChannelName
-    # set all groupA -t=teamA,teamB,teamC -s=serverIP -h=Host1IP,Host2IP -m=gameMode -sc=serverConf -rt=roundrobinTitle -c=announcementChannelName
+    # set groupA --teams=teamA,teamB,teamC --server=serverIP --hosts=Host1IP,Host2IP --mode=gameMode --server-conf=serverConf --roundrobin-title=roundrobinTitle --channel=announcementChannelName
+    # set groupA -t=teamA,teamB,teamC -s=serverIP -h=Host1IP,Host2IP -m=gameMode -sc=serverConf -rt=roundrobinTitle -c=announcementChannelName
     if len(body_text) < 2:
         msg = tl.getHelpMessageForOrganizers()
         message.reply(msg)
@@ -581,10 +581,12 @@ def start_func(message):
     tl.rsync('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group),
              '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
     for teamname in conf['teams']:
+        # sync teams to server
         tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
         for h in conf['hosts']:
             if h == conf['server']:
                 continue
+            # sync teams to server
             tl.rsync('{}/{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(h, USERNAME), delete=True)
 
     """
@@ -1302,7 +1304,6 @@ def binary_upload_func(message):
     #         tl.sendMessageToDiscordChannel(msg, c)
 
 
-
 @listen_to(r'^test\w*')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def test_func(message):
@@ -1414,20 +1415,25 @@ def stop_test_func(message):
     message.reply(msg)
 
 
-@respond_to('^upload \w+')
+@respond_to(r'^upload \w+')
 def file_upload_func(message):
+    message._client.reconnect()
+    time.sleep(3)
+
     original_channel_id = message.body['channel']
     organizer_channel_id = tl.getChannelID(message, ORGANIZER_CHANNEL_NAME)
 
-    userid = message.body['user']
+    user_id = message.body['user']
+
     try:
-        email = message.channel._client.users[userid]['profile']['email']
-    except KeyError:
+        email = message._client.users[user_id]['profile']['email']
+    except KeyError as e:
         msg = 'Unknown email. The user entered after this system started.\nPlease restart this system'
         tl.sendMessageToChannels(message=message,
                                  message_str=msg,
                                  channels=[original_channel_id, organizer_channel_id],
                                  default_id=original_channel_id)
+        print(e)
         return
     teamname = message.body['text'].split()[-1]
 
@@ -1453,7 +1459,7 @@ def file_upload_func(message):
         elif only_mail_flag:
             msg = 'Your team name may be \'{}\''.format(tmp_team, teamname)
         else:
-            msg = 'Your team is not resistered. Please ask organizers.'
+            msg = 'Your team is not registered. Please ask organizers.'
         message.reply(msg)
         return
 
@@ -1496,8 +1502,8 @@ def file_upload_func(message):
 
     file_types = ['gzip', 'binary']
     download_file = dl.DownloadFile(file_types, temporary_dir)
-    if 'files' in message._body.keys():
-        filename = message._body['files'][0]['name']
+    if 'files' in message.body.keys():
+        filename = message.body['files'][0]['name']
         result = download_file.exe_download(message._body['files'][0])
     else:
         result = 'empty'
@@ -1580,7 +1586,7 @@ def file_upload_func(message):
         current_server_status.pop(target_server_ip)
         return
 
-    msg = 'Binary upload succeeded.'
+    msg = '{}:Binary upload succeeded.'.format(teamname)
     tl.sendMessageToChannels(message=message,
                              message_str=msg,
                              channels=[original_channel_id, organizer_channel_id],
@@ -1666,6 +1672,7 @@ def file_upload_func(message):
         # sync config file of tournament
         tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME,
                                                                      yml_name.split('/')[-1]))
+        # sync teams to server
         tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(h, USERNAME), delete=True)
         tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME), delete=True)
 
