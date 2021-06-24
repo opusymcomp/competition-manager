@@ -1626,6 +1626,9 @@ def file_upload_func(message):
 
         for curdir, dirs, files in os.walk(temporary_dir+teamname):
             os.chmod(curdir, 0o777)
+            for file in files:
+                os.chmod(curdir+'/'+file, 0o777)
+
     else:
         message.reply(
             "The structure of team directory is wrong or the name of team directory is different from \'{}\'".format(
