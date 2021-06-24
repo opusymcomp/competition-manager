@@ -1624,8 +1624,8 @@ def file_upload_func(message):
             ty_dict = {"country": teamname}
             tl.saveYml(ty_dict, '{}{}/team.yml'.format(temporary_dir, teamname))
 
-        for excecuted in teamfiles:
-            os.chmod(temporary_dir + teamname + '/' + excecuted, 0o777)
+        for curdir, dirs, files in os.walk(temporary_dir+teamname):
+            os.chmod(curdir, 0o777)
     else:
         message.reply(
             "The structure of team directory is wrong or the name of team directory is different from \'{}\'".format(
