@@ -1788,7 +1788,7 @@ def file_upload_func(message):
     current_server_status.pop(target_server_ip)
 
 
-@listen_to('^clear$')
+@listen_to(r'^clear$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def clear_qualification_and_maillist(message):
     qualification_path = '{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH)
@@ -1804,7 +1804,7 @@ def clear_qualification_and_maillist(message):
     message.reply('setting files are cleared.')
 
 
-@listen_to('^register \S+$')
+@listen_to(r'^register \S+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def register_team(message):
     body_txt = message.body['text']
@@ -1825,7 +1825,7 @@ def register_team(message):
     message.reply('{},{} are registered in maillist.txt'.format(splitted_body_txt[0], splitted_body_txt[1]))
 
 
-@listen_to('^share \w+$')
+@listen_to(r'^share \w+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def share_file_func(message):
     if not google_drive_flag:
@@ -1860,7 +1860,7 @@ def share_file_func(message):
             tl.sendMessageToDiscordChannel(msg, c)
 
 
-@listen_to('^recovery mode \w+$')
+@listen_to(r'^recovery mode \w+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def switch_recovery_mode(message):
     txt_list = message.body['text'].split()
@@ -1884,7 +1884,7 @@ def switch_recovery_mode(message):
     return
 
 
-@listen_to('^reset gameflag .+$')
+@listen_to(r'^reset gameflag .+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def reset_gameflag(message):
     txt_list = message.body['text'].split()
@@ -1912,7 +1912,7 @@ def reset_gameflag(message):
     message.reply('reset {}'.format(target_server_ip))
 
 
-@listen_to('^reset test queue \w+$')
+@listen_to(r'^reset test queue .+$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
 def reset_test_queue(message):
     txt_list = message.body['text'].split()
