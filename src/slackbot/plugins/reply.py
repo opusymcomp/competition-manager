@@ -187,13 +187,13 @@ def set_host(message):
 
 
 def setHosts(message, host_list):
-    if len(host_list) == 2:
+    if len(host_list) % 2 == 0:
         host_yaml = {'hosts': host_list}
         tl.overwriteYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH), host_yaml)
         tl.overwriteYml('{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH), host_yaml)
         return True
     else:
-        msg = 'The number of hosts must be 2'
+        msg = 'The number of hosts must be an even number'
         message.reply(msg)
         return False
 
