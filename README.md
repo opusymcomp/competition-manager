@@ -20,6 +20,7 @@ link to
   - oauth2client
   - pyyaml
   - ruby2
+  - cython
 
 ## Install
 ```
@@ -34,26 +35,59 @@ $ pip install oauth2client
 $ pip install pyyaml
 $ pip install pydrive
 $ pip install discord.py
+$ pip install cython
 ```
 
 ## Setting
+
+### slackbotで用いる外部ツールの設定
+
+#### [Loganalyzer3](https://github.com/opusymcomp/loganalyzer3.git)
+- 以下のコマンドでloganalyzer3をダウンロードする．
+
+`$ git clone https://github.com/opusymcomp/loganalyzer3.git`
+
+- 必要なライブラリをインストールする．
+  - matplotlib
+  - cython
+
+- 以下のコマンドでコンパイルする．`finish compiliation`とでたら成功．
+```
+$ cd /path/to/loganalyzer3
+$ ./build.sh
+```  
+
+#### [tournament](https://github.com/rcsoccersim/tournament.git)
+- 以下のコマンドでtournamentをダウンロードする．
+
+`$ git clone https://github.com/rcsoccersim/tournament.git`
+
+- 必要なライブラリをインストールする
+
+`# apt-get install ruby`
+
+#### サーバ，ホスト
+tournamentスクリプトはパスワードなしでログインできる状態が前提となっている．
+鍵交換にて接続するサーバにパスワードなしで入れるようにしておく．
+一度は接続し，sshの初回認証を済ませておく．
 
 ### slackbotの設定
 まず [Slack](https://slack.com/get-started#/create) のアカウントを作成する．
 
 次に，[Slackbot](https://my.slack.com/services/new/bot) を作成する.
 
-その後，APIトークンを作成し，次のファイルに記入する．
-```
-competition-manager/src/slackbot/slackbot_settings.py
-```
-最後に，Slackbotをチャンネル（e.g. #general）に追加する．
+SlackBotに発言させたいチャンネルにBotを追加する．
 
-### testの設定
-次のファイルにagent2dへのパスを記入する．
-```
-competition-manager/test/autotest.sh
-```
+### [GoogleDrive](https://console.developers.google.com/)
+GoogleDriveClientIdを取得する．
+ログやバイナリを公開するため，「外部」を選択し，テストユーザーとして，自分のアカウントを登録する．
+
+（!!!外部かつテストのとき，一週間経過するとアプリの認証が切れます．詳細は下でも書いてます!!!）
+
+### [Discordbot](https://discord.com/login?redirect_to=%2Fdevelopers%2Fapplications%2F)
+Discordボットのセットアップを行い，トークンを得る．
+用いない場合は無視して良い．
+
 
 ### competition-managerの設定
 次のファイルに各設定を書き込む．
@@ -61,36 +95,96 @@ competition-manager/test/autotest.sh
 competition-manager/config/manager.yml
 ```
 
-[comment]: <> (### tournamentの設定)
+各設定項目は以下の通りである．
 
-[comment]: <> (toolでインストールしたtournamentの設定を行う．以下のファイルを作成・編集する．)
+- `competition_manager_path`: 
+  - このソースまでのパスを記入する．最後にスラッシュをつけるのを忘れずに．
+  - RoboCup2021の設定例：`/Users/fukushima/rcss/competition-manager/`
+- `tournamant_path`:
+  - loganalyzer3までのパスを記入する．最後にスラッシュをつけるのを忘れずに．
+  - RoboCup2021の設定例：`/Users/fukushima/rcss/loganalyzer3/`
+- `tournamant_path`:
+  - tournamentまでのパスを記入する．最後にスラッシュをつけるのを忘れずに．
+  - RoboCup2021の設定例：`/Users/fukushima/rcss/tournament/`
+- `username`:
+  - サーバ上のユーザ名を記入する．特に理由がなければrobocupでいいかと思われる．（ドキュメントでも/home/robocup/{teamname}で動くようにチームバイナリを作成するように指示しているため．）
+  - RoboCup2021の設定例：`robocup`
+- `slack_api_token`: 
+  - SlackBot利用時のAPIトークンを書き込む．
+  - 上記で設定したらAPIトークンをコピーできる．
+- `dropbox`関連:
+  - 用いていないため不明．動作確認もしていない．
+- `google_drive_client_id`:
+  - GoogleDriveにアップロードするためのクライアントIDを書き込む．
+  - 上記で設定したら獲得可能．
+- `google_drive_folder_id`: 
+  - GoogleDriveのアップロード先を書き込む．
+  - Googleドライブ上に共有フォルダを先に作成する．
+  - ユーザアクセスを"リンクを知っている全員"に変更する．
+  - リンク”https://drive.google.com/drive/folders/○○”における○○の部分を記載する．
+- `discord_token`: 
+  - Discordで発言するためのトークンを書き込む．
+  - Discordボットセットアップ時に得られるトークンを記載する．
+- `discord_channel_id`:
+  - Discordで発言するチャンネルIDを書き込む．
+  - チャンネルIDは下記のルールで記載されている．
+  - https://discord.com/channels/`ServerID`/`ChannelID`
+- `organizer_channnel_name`:
+  - Slackの運営用チャンネル名を書き込む．このチャンネル内で各権限や試合実行等のコマンドを入力する． 
+  - RoboCup2021の設定例：`organizer`
+- `announce_channel_name`: 
+  - Slack．Discordの通知用チャンネル名を書き込む．
+  - このチャンネル内に試合結果やファイル共有先などが書き込まれる．
+  - main_tournament_channel, sub_tournament_channelの名前は変更してもよい．また，３つ以上のチャンネルを設定しても良い．
+  - それぞれの設定名に対して，slackのチャンネル名とDiscordのID名を記入する． Discordを用いない場合は書く必要はない． 
+  - RoboCup2021の設定例：
+    ```
+    main_tournament_channnel:
+        slack: scores
+        discord: ???
+    ```
+- `competition_name`:
+  - ログやチームを共有する際の，フォルダ名に用いる．
+  - RoboCup2021の設定例：`RoboCup2021`
+- `teams_dir`:
+  - チームバイナリのアーカイブ箇所を指定する．
+  - RoboCup2021の設定例：`/Users/fukushima/rcss/competition-manager/teams/`
+- `log_dir`:
+  - RoboCup2021の設定例：`/Users/fukushima/rcss/competition-manager/logs/`
 
-[comment]: <> (- confファイルの設定)
 
-[comment]: <> (  - 次の行を試合設定によって変更する．)
+### (2021-12-04追記) SlackBot: ”Error: method_deprecated”が出る場合について
+https://api.slack.com/changelog/2021-10-rtm-start-to-stop
 
-[comment]: <> (```)
+2021-11-30をもって，rtm.start関数が動かなくなったらしい．
+SlackBotは未だにこの関数で実装されているものなので，ライブラリの更新を待つ他ない．（2021-12-04現在，slackbot ver 1.0.0）
 
-[comment]: <> (player_conf: config/rcssserver/player_official.conf)
+ライブラリ内，slackclient.pyの60行目付近を以下のように書き換えるとなんとかなる
+ライブラリを直接変更するため，仮想環境などを用いることを推奨．
 
-[comment]: <> (server_conf: config/rcssserver/server_official.conf)
+↓変更前
 
-[comment]: <> (```)
+`self.parse_user_data(login_data['users'])`
 
-### resultsの設定
-tournamentの設定でmode_groupを使用する場合は必要なし
+↓変更後
 
-tournamentの設定でmode_single_matchを使用する場合
-- google spreadsheetの設定jsonファイルを設置
-- competition-manager/src/gametools/resultsにあるggssapi_gameresult.pyとstanding.pyの設定jsonファイルへのパスとドキュメントIDを設定
+`self.parse_user_data(self.webapi.users.list().body['members'])`
+
+↓変更前
 ```
-path='to/json/path.json'
-doc_id='[document_id]'
+self.parse_channel_data(login_data['channels'])
+self.parse_channel_data(login_data['groups'])
+self.parse_channel_data(login_data['ims'])
 ```
-上記の[document_id]は使用するspreadsheetのURLの以下の部分を参照
-```
-https://docs.google.com/spreadsheets/d/[document_id]/edit#gid=0
-```
+
+↓変更後
+
+`self.parse_channel_data(self.webapi.conversations.list(types=['public_channel', 'private_channel', 'mpim', 'im']).body['channels'])`
+
+
+### testの設定
+テスト実行時の敵として，HELIOS_baseをcompetition-manager/testディレクトリの中におく． 
+フォルダ名は必ずagent2dとし，他チームと同様startスクリプトなどを決められた形に沿って配置する．
 
 
 ### GoogleDriveアップロードの設定
@@ -113,11 +207,8 @@ $ python drive.py
 competition-manager/config/credentials.json
 ```
 
-### チームリーダーの登録
-チームをアップロードするユーザのメールアドレスを以下のファイルに記入
-```
-competition-manager/config/maillist.txt
-```
+一週間経過するとアプリの認証が切れる．
+そのため，再度上記コマンドを実行し認証を行う必要がある．
 
 ## Usage
 ```
@@ -181,6 +272,32 @@ share teams (or logs)
 ```
 discordbot true (or false)
 ```
+
+
+### Competition-manager 実行例
+テスト時
+```
+server 192.168.1.2
+
+host 192.168.1.2,192.168.1.2
+
+allow binary upload
+
+… （全チームのバイナリアップロード完了）
+
+binary upload end
+```
+
+試合実行時
+```
+（まとめて設定する場合　set group以下順不同）
+set groupA --teams=team1,team2,team3 --server=192.168.1.2 --hosts=192.168.1.2,192.168.1.2 --channel=main_tournament_channel --roundrobin-title=SeedingRound --mode=group --server-conf=server_official.conf
+
+start groupA
+
+announce match groupA
+```
+
 
 # Participants
 [画像付きマニュアル](https://docs.google.com/document/d/1MCK7K-u6vaTPXFklca4m6ZYC2Izul3Cr4Psi4NJtS-Y/edit#)
