@@ -1270,6 +1270,10 @@ def binary_upload_func(message):
     #     for c in announce_channel_id:
     #         tl.sendMessageToDiscordChannel(msg, c)
 
+    # confirmation
+    target_server_ip = tl.loadYml(yml_name)['server']
+    msg = 'Have you set-up the cpufreq governors to \'performance\' in {} ?\n'.format(target_server_ip)
+    message.reply(msg)
 
 @listen_to(r'^binary upload end$')
 @in_channel(ORGANIZER_CHANNEL_NAME)
