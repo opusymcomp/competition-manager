@@ -1286,9 +1286,9 @@ def binary_upload_func(message):
     archive_team_dir = '{}{}/{}/'.format(TEAMS_DIR, COMPETITION_NAME, archived_time)
     qualified_teams = tl.getQualifiedTeams()
     for q_team in qualified_teams:
-        team_path = COMPETITION_MANAGER_PATH + 'qualified_team' + '/' + q_team + '.tar.gz'
+        team_path = glob.glob(COMPETITION_MANAGER_PATH + 'qualified_team' + '/' + q_team + '.tar.*')
         os.makedirs(archive_team_dir, exist_ok=True)
-        shutil.copy2(team_path, archive_team_dir)
+        shutil.copy2(team_path[0], archive_team_dir)
 
     original_channel_id = message.body['channel']
     announce_channel_id = [tl.getChannelID(message, key['slack']) for key in ANNOUNCE_CHANNEL_NAME.values()]
@@ -1625,9 +1625,9 @@ def file_upload_func(message):
             tl.saveYml(ty_dict, '{}{}/team.yml'.format(temporary_dir, teamname))
 
         for curdir, dirs, files in os.walk(temporary_dir+teamname):
-            os.chmod(curdir, 0o777)
+            os.chmod(curdir, 0o700)
             for file in files:
-                os.chmod(curdir+'/'+file, 0o777)
+                os.chmod(curdir+'/'+file, 0o700)
 
     else:
         message.reply(
@@ -1748,6 +1748,10 @@ def file_upload_func(message):
             message.send(msg)
 
             # move the succeeded team in qualified_dir
+            already_uploaded_files = glob.glob('{}{}*'.format(qualified_dir, teamname))
+            for already_uploaded_file in already_uploaded_files:
+                if os.path.isfile(already_uploaded_file):
+                    os.remove(already_uploaded_file)
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(qualified_dir, filename))
             if os.path.exists('{}{}'.format(qualified_dir, teamname)):
                 shutil.rmtree('{}{}'.format(qualified_dir, teamname))
@@ -1765,11 +1769,18 @@ def file_upload_func(message):
             # Unknown Error
             else:
                 msg = '??? Something wrong ???'
-            message.reply(msg)
+            tl.sendMessageToChannels(message=message,
+                                     message_str=msg,
+                                     channels=[original_channel_id, organizer_channel_id],
+                                     default_id=original_channel_id)
             shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
             shutil.rmtree('{}{}'.format(temporary_dir, teamname))
 
     except Exception:
+        # print the error message
+        import traceback
+        traceback.print_exc()
+
         # failed message
         msg = '{}:Binary test failed.'.format(teamname)
         tl.sendMessageToChannels(message=message,
@@ -1780,8 +1791,11 @@ def file_upload_func(message):
         shutil.rmtree('{}{}'.format(temporary_dir, teamname))
 
     # move logfiles to competition-manager
-    os.makedirs(LOG_DIR + 'test/', exist_ok=True)
-    shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir), '{}test/{}/{}'.format(LOG_DIR, teamname, upload_time))
+    try:
+        os.makedirs(LOG_DIR + 'test/', exist_ok=True)
+        shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir), '{}test/{}/{}'.format(LOG_DIR, teamname, upload_time))
+    except FileNotFoundError as e:
+        print(e)
 
     # reset game flag and bin-test-que
     bin_test_queue.remove(teamname)
