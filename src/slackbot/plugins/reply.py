@@ -1629,9 +1629,12 @@ def file_upload_func(message):
             tl.saveYml(ty_dict, '{}{}/team.yml'.format(temporary_dir, teamname))
 
         for curdir, dirs, files in os.walk(temporary_dir+teamname):
-            os.chmod(curdir, 0o700)
-            for file in files:
-                os.chmod(curdir+'/'+file, 0o700)
+            try:
+                os.chmod(curdir, 0o700)
+                for file in files:
+                    os.chmod(curdir+'/'+file, 0o700)
+            except PermissionError as e:
+                print('Permission Error ({}), but the upload procedure will continue...'.format(e.filename))
 
     else:
         message.reply(
