@@ -14,6 +14,7 @@ google_drive_client_id: [client_id]
 google_drive_client_secret: [client_secret]
 google_drive_folder_id: [folder_id]
 discord_token: [discord_token]
+discord_channel_id: [channel_id]
 
 # slack options
 organizer_channel_name: [organizer_ch]
@@ -21,12 +22,13 @@ announce_channel_name:
  main_tournament_channel:
   slack: [slack_channel_name]
   discord: [discord_channel_id]
- sub_tournament_channel:
-  slack: [slack_channel_name]
-  discord: [discord_channel_id]
+# sub_tournament_channel:
+#  slack: []
+#  discord: []
 
-# competition options
-competition_name: [Competition name]
+
+# competition options (do not contain spaces in competition_name)
+competition_name: [CompetitionName]
 # !!!!!
 # teams are saved on HOME directory.
 # The following setting are used to save archives at the competition-manager server. !!!!!
