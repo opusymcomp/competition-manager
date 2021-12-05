@@ -159,10 +159,18 @@ https://api.slack.com/changelog/2021-10-rtm-start-to-stop
 2021-11-30をもって，rtm.start関数が動かなくなったらしい．
 SlackBotは未だにこの関数で実装されているものなので，ライブラリの更新を待つ他ない．（2021-12-04現在，slackbot ver 1.0.0）
 
-ライブラリ内，slackclient.pyの60行目付近を以下のように書き換えるとなんとかなる
+ライブラリ内，slackclient.pyの45行目付近と60行目付近を以下のように書き換えるとなんとかなる．
 ライブラリを直接変更するため，仮想環境などを用いることを推奨．
 
-↓変更前
+↓変更前（45行目付近）
+
+`reply = self.webapi.rtm.start(**(self.rtm_start_args or {})).body`
+
+↓変更後
+
+`reply = self.webapi.rtm.connect(**(self.rtm_start_args or {})).body`
+
+↓変更前（60行目付近）
 
 `self.parse_user_data(login_data['users'])`
 
@@ -170,7 +178,7 @@ SlackBotは未だにこの関数で実装されているものなので，ライ
 
 `self.parse_user_data(self.webapi.users.list().body['members'])`
 
-↓変更前
+↓変更前（60行目付近）
 ```
 self.parse_channel_data(login_data['channels'])
 self.parse_channel_data(login_data['groups'])
