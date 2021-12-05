@@ -162,7 +162,7 @@ def overwriteYml(path, added_info):
                      'shutdown_sleep': 2,
                      'team_mode': 'official',
                      'teams': ['', ''],
-                     'teams_dir': '/home/{}'.format(USERNAME),
+                     'teams_dir': '/home/{}/{}'.format(USERNAME, COMPETITION_NAME),
                      'title': COMPETITION_NAME
                      }
 
@@ -172,14 +172,14 @@ def overwriteYml(path, added_info):
     saveYml(yaml_conf, path)
 
 
-def startGame(server, yml):
-    cmd = 'cd tournament; ./start.sh --config={}'.format(yml)
+def startGame(server, path, yml):
+    cmd = 'cd {}; ./start.sh --config={}'.format(path, yml)
     result = cmdAtRemoteServer(server, cmd)
     return result
 
 
-def resumeGame(server, yml):
-    cmd = 'cd tournament; ./start.sh --resume --config={}'.format(yml)
+def resumeGame(server, path, yml):
+    cmd = 'cd {}; ./start.sh --resume --config={}'.format(path, yml)
     result = cmdAtRemoteServer(server, cmd)
     return result
 
