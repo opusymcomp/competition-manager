@@ -525,7 +525,9 @@ def start_func(message):
         return
     channel_conf = tl.loadYml('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
 
+    #
     # check game server availability
+    #
     tournament_conf = tl.loadYml('{}config/tournament.yml'.format(COMPETITION_MANAGER_PATH))
     target_server_ip = tournament_conf['server']
     global current_server_status
@@ -547,6 +549,9 @@ def start_func(message):
     group = txt_list[-1]
     dt_start = datetime.datetime.now().strftime('%Y%m%d%H%M')
 
+    #
+    # check the group tournament condition
+    #
     teams = tl.getTeamsInGroup(group)
     if len(teams) == 0:
         msg = '\'{}\' is empty. Please create groups by \'group\' command before using this command.'.format(group)
@@ -566,28 +571,36 @@ def start_func(message):
         message.reply(msg)
         return
 
+    #
+    # update tournament.yml
+    #
     tournament_conf['log_dir'] = '{}/{}'.format(dt_start, group)
     tl.overwriteYml('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group), tournament_conf)
 
+    #
     # set current server status
+    #
     current_server_status[target_server_ip] = group
 
+    #
+    # load group conf
+    #
     conf = tl.loadYml('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
 
     qualified_dir = "{}qualified_team/".format(COMPETITION_MANAGER_PATH)
 
     print('sync tournament scripts and teams...')
-    tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
+    tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:{}'.format(conf['server'], conf['teams_dir']))
     tl.rsync('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group),
-             '{}:/home/{}/tournament/config/tournament.yml'.format(conf['server'], USERNAME))
+             '{}:{}/tournament/config/tournament.yml'.format(conf['server'], conf['teams_dir']))
     for teamname in conf['teams']:
         # sync teams to server
-        tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
+        tl.rsync('{}{}'.format(qualified_dir, teamname), '{}:{}'.format(conf['server'], conf['teams_dir']), delete=True)
         for h in conf['hosts']:
             if h == conf['server']:
                 continue
             # sync teams to server
-            tl.rsync('{}/{}'.format(qualified_dir, teamname), '{}:/home/{}'.format(h, USERNAME), delete=True)
+            tl.rsync('{}/{}'.format(qualified_dir, teamname), '{}:{}'.format(h, conf['teams_dir']), delete=True)
 
     """
     if conf['mode'] == 'single_match':
@@ -644,7 +657,9 @@ def start_func(message):
     """
 
     if conf['mode'] == 'group' or conf['mode'] == 'one_vs_all':
+        #
         # simulate
+        #
         msg = tl.getGroupMatchListMessage(group, tournament_conf)
         # msg = group + ' tournament starts soon \n' \
         #  'Start time : ' + dt_start + '\nI will notify you when all games are finished.\n'
@@ -660,10 +675,11 @@ def start_func(message):
         if discordbot_flag:
             tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
 
+        #
         # save match list
+        #
         match_dict = {}
         max_match = 0
-
         for match_line in msg.split('\n'):
             if 'vs' in match_line:
                 splitted_match_line = match_line.split()
@@ -676,10 +692,16 @@ def start_func(message):
         match_dict['max_match'] = max_match
         tl.saveYml(match_dict, '{}config/match_list_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
 
+        #
         # start game
+        #
         _ = tl.startGame(conf['server'],
-                         '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
+                         '{}/tournament'.format(conf['teams_dir']),
+                         '{}/tournament/config/tournament.yml'.format(conf['teams_dir']))
 
+        #
+        # aborted process
+        #
         aborted = False
         global abort_process
         while abort_process:
@@ -687,12 +709,17 @@ def start_func(message):
                 aborted = True
             time.sleep(3)
 
+        #
         # sync game logs to slackserver
-        tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, dt_start),
+        #
+        tl.rsync('{}:{}/tournament/{}'.format(conf['server'], conf['teams_dir'], dt_start),
                  TOURNAMENT_PATH.rstrip('/'))
+
+        #
         # remove game logs in rcssserver
+        #
         tl.cmdAtRemoteServer(conf['server'],
-                             'rm -r /home/{}/tournament/{}'.format(USERNAME, dt_start))
+                             'rm -r {}/tournament/{}'.format(conf['teams_dir'], dt_start))
 
     else:
         msg = 'Illegal game mode \'{}\'.'.format(conf['mode'])
@@ -710,12 +737,16 @@ def start_func(message):
 
     current_server_status.pop(target_server_ip)
 
+    #
     # wait for finishing announce
+    #
     while True:
         if group not in announcement_channel_status.keys():
             break
 
+    #
     # check the aborted match
+    #
     if aborted:
         matches_list = glob.glob('{}{}/match_*'.format(TOURNAMENT_PATH, conf['log_dir']))
         for match in matches_list:
@@ -724,9 +755,11 @@ def start_func(message):
             if len(files_list) != 2:
                 shutil.rmtree('{}{}/{}'.format(TOURNAMENT_PATH, conf['log_dir'], match_name))
         # remove the aborted log files
-        _ = tl.cmdAtRemoteServer(conf['server'], 'rm /home/{}/tournament/*.rc*.gz'.format(USERNAME))
+        _ = tl.cmdAtRemoteServer(conf['server'], 'rm {}/tournament/*.rc*.gz'.format(conf['teams_dir']))
 
+    #
     # copy the game log files
+    #
     os.makedirs('{}{}'.format(LOG_DIR, conf['title']), exist_ok=True)
     copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}{}'.format(LOG_DIR, conf['title']))
     os.makedirs('{}{}'.format(LOG_DIR, 'archive/'), exist_ok=True)
@@ -787,8 +820,10 @@ def announce_func(message):
     announcement_channel_status[group] = channel_conf[group]
     global current_server_status
     while target_server_ip in current_server_status.keys():
+        #
         # sync game logs (remove the previous one)
-        tl.rsync('{}:/home/{}/tournament/{}'.format(conf['server'], USERNAME, dt_start),
+        #
+        tl.rsync('{}:{}/tournament/{}'.format(conf['server'], conf['teams_dir'], dt_start),
                  TOURNAMENT_PATH.rstrip('/'))
 
         if os.path.exists(tournament_log_dir):
@@ -854,8 +889,10 @@ def announce_func(message):
             progress_flag = False
         sleep(5)
 
+    #
     # send result of the final match
     # TODO: functionize the same process
+    #
     result_dict = tl.getResults('{}results.log'.format(tournament_log_dir))
 
     group = conf['log_dir'].split('/')[-1]
@@ -951,7 +988,9 @@ def abort_func(message):
 
     tournament_conf = tl.loadYml("{}config/tournament_{}.yml".format(COMPETITION_MANAGER_PATH, group))
 
+    #
     # kill tournament script
+    #
     cmd = "ps aux | grep \"[s]sh {} cd tournament; ./start.sh\" | tail -n 1".format(server)
     ssh_process_id = tl.cmdAtLocalhost(cmd).stdout.split()[1]
     msg = 'kill tournament script...'
@@ -959,7 +998,9 @@ def abort_func(message):
     message.reply(msg)
     _ = tl.cmdAtLocalhost('kill {}'.format(ssh_process_id))
 
+    #
     # kill rcssserver
+    #
     cmd = 'ps aux | grep [r]cssserver | tail -n 1'.format(server)
     rcssserver_process_id = tl.cmdAtRemoteServer(server, cmd).stdout.split()[1]
     msg = 'kill rcssserver...'
@@ -967,13 +1008,15 @@ def abort_func(message):
     message.reply(msg)
     _ = tl.cmdAtRemoteServer(server, 'kill {}'.format(rcssserver_process_id))
 
+    #
     # kill agents
+    #
     teams = tournament_conf['teams']
     msg = 'kill agents...'
     print(msg)
     message.reply(msg)
     for t in teams:
-        _ = tl.cmdAtRemoteServer(server, '/home/{}/{}/kill'.format(USERNAME, t))
+        _ = tl.cmdAtRemoteServer(server, '{}/kill'.format(tournament_conf['teams_dir'], t))
     abort_process = False
 
 
@@ -996,7 +1039,9 @@ def resume_func(message):
         return
 
     channel_conf = tl.loadYml('{}config/channel.yml'.format(COMPETITION_MANAGER_PATH))
+    #
     # check game server availability
+    #
     tournament_conf = tl.loadYml('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group))
     target_server_ip = tournament_conf['server']
     global current_server_status
@@ -1036,26 +1081,32 @@ def resume_func(message):
                              default_id=original_channel_id)
     if discordbot_flag:
         tl.sendMessageToDiscordChannel(msg, discord_announce_channel_id)
-
+    #
     # set current server status
+    #
     current_server_status[target_server_ip] = group
 
+    #
     # !!! not sync teams under a assumption that teams must be same as the aborted situation !!!
     # !!! if you want to replace a team, you have to do by yourself. !!!
+    #
     print('sync tournament scripts...')
-    tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:{}'.format(tournament_conf['server'], tournament_conf['teams_dir']))
     tl.rsync('{}config/tournament_{}.yml'.format(COMPETITION_MANAGER_PATH, group),
-             '{}:/home/{}/tournament/config/tournament.yml'.format(tournament_conf['server'], USERNAME))
-
+             '{}:{}/tournament/config/tournament.yml'.format(tournament_conf['server'], tournament_conf['teams_dir']))
+    #
     # sync game logs to rcssserver
+    #
     tl.cmdAtRemoteServer(target_server_ip, 'cd tournament; mkdir -p {}'.format(tournament_conf['log_dir']))
     # cannot use rsync the path including spaces
     tl.rsync('\"{}{}/{}\"'.format(LOG_DIR, tournament_conf['title'], group),
-             '{}:/home/{}/tournament/{}'.format(target_server_ip, USERNAME, tournament_conf['log_dir'].split('/')[0]))
-
+             '{}:{}/tournament/{}'.format(target_server_ip, tournament_conf['teams_dir'], tournament_conf['log_dir'].split('/')[0]))
+    #
     # resume game
+    #
     a = tl.resumeGame(target_server_ip,
-                      '/home/{}/tournament/config/tournament.yml'.format(USERNAME))
+                      '{}/tournament'.format(tournament_conf['teams_dir']),
+                      '{}/tournament/config/tournament.yml'.format(tournament_conf['teams_dir']))
 
     aborted = False
     global abort_process
@@ -1064,13 +1115,17 @@ def resume_func(message):
             aborted = True
         time.sleep(3)
 
+    #
     # sync game logs to slackserver
+    #
     dt_start = tournament_conf['log_dir'].split('/')[0]
-    tl.rsync('{}:/home/{}/tournament/{}'.format(target_server_ip, USERNAME, dt_start),
+    tl.rsync('{}:{}/tournament/{}'.format(target_server_ip, tournament_conf['teams_dir'], dt_start),
              TOURNAMENT_PATH.rstrip('/'))
+    #
     # remove game logs in rcssserver
+
     tl.cmdAtRemoteServer(target_server_ip,
-                         'rm -r /home/{}/tournament/{}'.format(USERNAME, dt_start))
+                         'rm -r {}/tournament/{}'.format(tournament_conf['teams_dir'], dt_start))
 
     msg = group + ' tournament is over.\n' if not aborted else group + ' tournament is aborted. \n'
 
@@ -1083,7 +1138,9 @@ def resume_func(message):
 
     current_server_status.pop(target_server_ip)
 
+    #
     # wait for finishing announce
+    #
     while True:
         if group not in announcement_channel_status.keys():
             break
@@ -1096,9 +1153,11 @@ def resume_func(message):
             if len(files_list) != 2:
                 shutil.rmtree('{}{}/{}'.format(TOURNAMENT_PATH, tournament_conf['log_dir'], match_name))
         # remove the aborted log files
-        _ = tl.cmdAtRemoteServer(tournament_conf['server'], 'rm /home/{}/tournament/*.rc*.gz'.format(USERNAME))
+        _ = tl.cmdAtRemoteServer(tournament_conf['server'], 'rm {}/tournament/*.rc*.gz'.format(tournament_conf['teams_dir']))
 
+    #
     # copy the game log files
+    #
     os.makedirs('{}{}'.format(LOG_DIR, tournament_conf['title']), exist_ok=True)
     copy_tree('{}{}'.format(TOURNAMENT_PATH, dt_start), '{}{}'.format(LOG_DIR, tournament_conf['title']))
     os.makedirs('{}{}'.format(LOG_DIR, 'archive/'), exist_ok=True)
@@ -1361,47 +1420,66 @@ def test_func(message):
         conf = tl.loadYml(yml_name)
         # update qualification_test.yml
         conf['log_dir'] = log_dir
-        conf['teams_dir'] = '/home/{}'.format(USERNAME)
         conf['teams'] = [t_team, 'agent2d']
         conf['server_conf'] = 'config/rcssserver/server_test.conf'
         tl.overwriteYml(yml_name, conf)
 
         qualified_dir = '{}qualified_team/'.format(COMPETITION_MANAGER_PATH)
 
+        #
+        # sync to server
+        #
         # sync tournament script
-        tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(conf['server'], USERNAME))
+        tl.rsync(TOURNAMENT_PATH.rstrip('/'),
+                 '{}:{}'.format(conf['server'], conf['teams_dir']))
         # sync config file of tournament
-        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
+        tl.rsync(yml_name,
+                 '{}:{}/tournament/config/{}'.format(conf['server'], conf['teams_dir'], yml_name.split('/')[-1]))
         # sync teams
-        tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
-        tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(conf['server'], USERNAME), delete=True)
+        tl.rsync('{}{}'.format(qualified_dir, t_team),
+                 '{}:{}'.format(conf['server'], conf['teams_dir']), delete=True)
+        tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH),
+                 '{}:{}'.format(conf['server'], conf['teams_dir']), delete=True)
 
+        #
         # sync to host
+        #
         for h in conf['hosts']:
             if h == conf['server']:
                 continue
             # sync tournament script
-            tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
+            tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:{}'.format(h, conf['teams_dir']))
             # sync config file of tournament
             tl.rsync(yml_name,
-                     '{}:/home/{}/tournament/config/{}'.format(conf['server'], USERNAME, yml_name.split('/')[-1]))
+                     '{}:{}/tournament/config/{}'.format(conf['server'], conf['teams_dir'], yml_name.split('/')[-1]))
             # sync teams
-            tl.rsync('{}{}'.format(qualified_dir, t_team), '{}:/home/{}'.format(h, USERNAME), delete=True)
-            tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME), delete=True)
+            tl.rsync('{}{}'.format(qualified_dir, t_team),
+                     '{}:{}'.format(h, conf['teams_dir']), delete=True)
+            tl.rsync('{}/test/agent2d'.format(COMPETITION_MANAGER_PATH),
+                     '{}:{}'.format(h, conf['teams_dir']), delete=True)
 
+        #
+        # start test
+        #
         message.send(t_team + ' test start')
         _ = tl.startGame(conf['server'],
-                         '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/')[-1]))
+                         '{}/tournament'.format(conf['teams_dir']),
+                         '{}/tournament/config/{}'.format(conf['teams_dir'], yml_name.split('/')[-1]))
         message.send(t_team + ' test finish')
 
+        #
         # sync game logs to slackserver
-        tl.rsync('{}:/home/{}/tournament/log'.format(conf['server'], USERNAME),
+        #
+        tl.rsync('{}:{}/tournament/log'.format(conf['server'], conf['teams_dir']),
                  TOURNAMENT_PATH.rstrip('/'))
+        #
         # remove game logs in rcssserver
+        #
         tl.cmdAtRemoteServer(conf['server'],
-                             'rm -r /home/{}/tournament/log'.format(USERNAME))
-
+                             'rm -r {}/tournament/log'.format(conf['teams_dir']))
+        #
         # move logfiles to competition-manager
+        #
         os.makedirs(LOG_DIR + 'test/', exist_ok=True)
         shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir),
                     '{}test/{}/{}'.format(LOG_DIR, t_team, time))
@@ -1474,7 +1552,12 @@ def file_upload_func(message):
         return
     bin_test_queue.append(teamname)
 
-    target_server_ip = tl.loadYml(yml_name)['server']
+    #
+    # read qualification_test.yml
+    #
+    tournament_conf = tl.loadYml(yml_name)
+
+    target_server_ip = tournament_conf['server']
     is_first_comment = False
     global current_server_status
     while True:
@@ -1650,56 +1733,75 @@ def file_upload_func(message):
     yml_name = '{}config/qualification_test.yml'.format(COMPETITION_MANAGER_PATH)
     log_dir = "log/" + teamname + "/" + upload_time
 
-    tournament_conf = tl.loadYml(yml_name)
-
-    # update qualification_test.yml
+    #
+    # update qualification_test.yml (other parameters are remained as default)
+    #
     tournament_conf['log_dir'] = log_dir
-    tournament_conf['teams_dir'] = '/home/{}'.format(USERNAME)
     tournament_conf['teams'] = [teamname, 'agent2d']
     tournament_conf['server_conf'] = 'config/rcssserver/server_test.conf'
     tl.overwriteYml(yml_name, tournament_conf)
 
+    #
     # sync to server
+    #
     # sync tournament script
-    tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(tournament_conf['server'], USERNAME))
+    tl.rsync(TOURNAMENT_PATH.rstrip('/'),
+             '{}:{}'.format(tournament_conf['server'], tournament_conf['teams_dir']))
     # sync config file of tournament
     tl.rsync(yml_name,
-             '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME, yml_name.split('/')[-1]))
+             '{}:{}/tournament/config/{}'.format(tournament_conf['server'], tournament_conf['teams_dir'], yml_name.split('/')[-1]))
     # sync teams to server
-    tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(tournament_conf['server'], USERNAME), delete=True)
+    tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:{}'.format(tournament_conf['server'], tournament_conf['teams_dir']), delete=True)
     tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH),
-             '{}:/home/{}'.format(tournament_conf['server'], USERNAME), delete=True)
+             '{}:{}'.format(tournament_conf['server'], tournament_conf['teams_dir']), delete=True)
 
+    #
     # sync to host
+    #
     for h in tournament_conf['hosts']:
         if h == tournament_conf['server']:
             continue
         # sync tournament script
-        tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:/home/{}'.format(h, USERNAME))
+        tl.rsync(TOURNAMENT_PATH.rstrip('/'), '{}:{}'.format(h, tournament_conf['teams_dir']))
         # sync config file of tournament
-        tl.rsync(yml_name, '{}:/home/{}/tournament/config/{}'.format(tournament_conf['server'], USERNAME,
-                                                                     yml_name.split('/')[-1]))
+        tl.rsync(yml_name,
+                 '{}:{}/tournament/config/{}'.format(tournament_conf['server'],
+                                                     tournament_conf['teams_dir'],
+                                                     yml_name.split('/')[-1]))
         # sync teams to server
-        tl.rsync('{}{}'.format(temporary_dir, teamname), '{}:/home/{}'.format(h, USERNAME), delete=True)
-        tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH), '{}:/home/{}'.format(h, USERNAME), delete=True)
+        tl.rsync('{}{}'.format(temporary_dir, teamname),
+                 '{}:{}'.format(h, tournament_conf['teams_dir']), delete=True)
+        tl.rsync('{}test/agent2d'.format(COMPETITION_MANAGER_PATH),
+                 '{}:{}'.format(h, tournament_conf['teams_dir']), delete=True)
 
     result_game = tl.startGame(tournament_conf['server'],
-                               '/home/{}/tournament/config/{}'.format(USERNAME, yml_name.split('/')[-1]))
+                               '{}/tournament'.format(tournament_conf['teams_dir']),
+                               '{}/tournament/config/{}'.format(tournament_conf['teams_dir'], yml_name.split('/')[-1]))
     print(result_game.stdout)
 
+    #
     # sync game logs to slackserver
-    tl.rsync('{}:/home/{}/tournament/log'.format(tournament_conf['server'], USERNAME),
+    #
+    tl.rsync('{}:{}/tournament/log'.format(tournament_conf['server'], tournament_conf['teams_dir']),
              TOURNAMENT_PATH.rstrip('/'))
-    # remove game logs in rcssserver
-    tl.cmdAtRemoteServer(tournament_conf['server'],
-                         'rm -r /home/{}/tournament/log'.format(USERNAME))
 
+    #
+    # remove game logs in rcssserver
+    #
+    tl.cmdAtRemoteServer(tournament_conf['server'],
+                         'rm -r {}/tournament/log'.format(tournament_conf['teams_dir']))
+
+    #
     # analyze the test
+    #
     result_analyze = subprocess.run(['{}/test/analyze_test.sh'.format(COMPETITION_MANAGER_PATH),
                                      TOURNAMENT_PATH + log_dir, LOGANALYZER_PATH],
                                     encoding='utf-8', stdout=subprocess.PIPE)
     print(result_analyze.stdout)
 
+    #
+    # file upload process
+    #
     if os.path.exists(TOURNAMENT_PATH + log_dir + '/match_1'):
         for f_name in os.listdir(TOURNAMENT_PATH + log_dir + '/match_1'):
             if ('rc' in f_name and '.gz' in f_name) or ('team_l' in f_name and '.log' in f_name):
@@ -1710,18 +1812,25 @@ def file_upload_func(message):
                 tl.upload_file_s(TOURNAMENT_PATH + log_dir + '/match_1/' + f_name,
                                  message.body['channel'])
 
+    #
     # check disconnected players
+    #
     discon_index = result_analyze.stdout.find('DisconnectedPlayer')
     discon_p = result_analyze.stdout[discon_index + len('DisconnectedPlayer'):].replace('\n', '')
     print('discon_p', discon_p)
 
+    #
     # save the succeeded team_name to qualification.txt
+    #
     try:
+        #
         # success-process
+        #
         if discon_p != '' and int(discon_p) == 0 \
                 and os.path.exists('{}/test/log_ana/{}.csv'.format(COMPETITION_MANAGER_PATH, teamname)):
             if os.path.exists('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH)):
                 qualified_team = tl.getQualifiedTeams()
+                # add new qualified team
                 if teamname not in qualified_team:
                     with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'a') as q_txt_ad:
                         q_txt_ad.write(teamname + ',' + upload_time + '\n')
@@ -1742,7 +1851,9 @@ def file_upload_func(message):
                 with open('{}config/qualification.txt'.format(COMPETITION_MANAGER_PATH), 'w') as q_txt:
                     q_txt.write(teamname + ',' + upload_time + '\n')
 
+            #
             # success message
+            #
             msg = '{}:Binary test succeeded.'.format(teamname)
             tl.sendMessageToChannels(message=message,
                                      message_str=msg,
@@ -1751,7 +1862,9 @@ def file_upload_func(message):
             msg = 'Please check that your team worked correctly.'
             message.send(msg)
 
+            #
             # move the succeeded team in qualified_dir
+            #
             already_uploaded_files = glob.glob('{}{}*'.format(qualified_dir, teamname))
             for already_uploaded_file in already_uploaded_files:
                 if os.path.isfile(already_uploaded_file):
@@ -1761,7 +1874,9 @@ def file_upload_func(message):
                 shutil.rmtree('{}{}'.format(qualified_dir, teamname))
             shutil.move('{}{}'.format(temporary_dir, teamname), '{}{}'.format(qualified_dir, teamname))
 
+        #
         # failed process
+        #
         else:
             # Illegal team_name
             if not os.path.exists('{}/test/log_ana/{}.csv'.format(COMPETITION_MANAGER_PATH, teamname)):
@@ -1786,7 +1901,7 @@ def file_upload_func(message):
         traceback.print_exc()
 
         # failed message
-        msg = '{}:Binary test failed.'.format(teamname)
+        msg = '{}:Binary test failed with some error. Please ask organizer.'.format(teamname)
         tl.sendMessageToChannels(message=message,
                                  message_str=msg,
                                  channels=[original_channel_id, organizer_channel_id],
@@ -1794,14 +1909,18 @@ def file_upload_func(message):
         shutil.move('{}{}'.format(temporary_dir, filename), '{}{}'.format(failed_dir, filename))
         shutil.rmtree('{}{}'.format(temporary_dir, teamname))
 
+    #
     # move logfiles to competition-manager
+    #
     try:
         os.makedirs(LOG_DIR + 'test/', exist_ok=True)
         shutil.move('{}{}'.format(TOURNAMENT_PATH, log_dir), '{}test/{}/{}'.format(LOG_DIR, teamname, upload_time))
     except FileNotFoundError as e:
         print(e)
 
+    #
     # reset game flag and bin-test-que
+    #
     bin_test_queue.remove(teamname)
     current_server_status.pop(target_server_ip)
 
